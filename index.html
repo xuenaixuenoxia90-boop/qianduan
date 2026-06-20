@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>人员在线情况查询系统</title>
+    <style>
+        :root {
+            --status-0: #22c55e;
+            --status-1: #eab308;
+            --status-2: #3b82f6;
+            --status-3: #ef4444;
+            --status-4: #ff8c00;
+            --status-5: #581c87;
+            --bg-dark: #1f2937;
+            --bg-light: #f3f4f6;
+            --primary: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-light); height: 100vh; overflow: hidden; font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; font-size: 14px; }
+        .page { display: none; height: 100vh; }
+        .page.active { display: flex; flex-direction: column; }
+
+        .header { background: white; padding: 8px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header h1 { color: var(--bg-dark); font-size: 1.1em; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .position-badge { padding: 4px 10px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.8em; }
+        .logout-btn { padding: 4px 10px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8em; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: var(--bg-dark); font-size: 0.9em; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+        .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; }
+        .btn:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; }
+        .btn-warning { background: #f59e0b; }
+        .btn-danger { background: #ef4444; }
+
+        .content { flex: 1; padding: 8px; overflow: hidden; display: flex; flex-direction: column; }
+
+        .legend { background: white; border-radius: 6px; padding: 5px 10px; margin-bottom: 6px; display: flex; gap: 10px; justify-content: center; flex-shrink: 0; font-size: 0.75em; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 3px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; }
+        .legend-color.status-0 { background: var(--status-0); }
+        .legend-color.status-1 { background: var(--status-1); }
+        .legend-color.status-2 { background: var(--status-2); }
+        .legend-color.status-3 { background: var(--status-3); }
+        .legend-color.status-4 { background: var(--status-4); }
+        .legend-color.status-5 { background: var(--status-5); }
+
+        /* ===== 新版连级页面布局 ===== */
+        .platoon-header-row { display: flex; gap: 6px; margin-bottom: 6px; flex-shrink: 0; }
+        .platoon-header-pill { flex: 1; padding: 6px 4px; background: var(--bg-dark); color: white; border: none; border-radius: 20px; font-size: 0.85em; font-weight: 600; text-align: center; cursor: pointer; transition: opacity 0.15s; }
+        .platoon-header-pill:hover, .platoon-header-pill:active { opacity: 0.7; }
+
+        .person-grid-area { flex: 1; display: grid; gap: 6px; min-height: 0; }
+        .person-grid-area.grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .person-grid-area.grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .person-grid-area.grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .person-grid-area.grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+        .person-col { display: flex; flex-direction: column; background: white; border-radius: 8px; overflow: hidden; min-height: 0; }
+        .person-col-inner { flex: 1; display: flex; gap: 2px; padding: 3px; min-height: 0; }
+
+        .squad-block { flex: 1; background: #f9fafb; border-radius: 4px; overflow: hidden; min-height: 0; }
+        .squad-person-grid { width: 100%; height: 100%; display: grid; gap: 2px; padding: 3px; }
+
+        .person-cell { border-radius: 2px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 600; }
+        .person-cell .name { font-size: 0.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: center; line-height: 1.1; }
+        .person-cell .status-text { font-size: 0.4em; opacity: 0.8; }
+        .person-cell.status-0 { background: var(--status-0); color: white; }
+        .person-cell.status-1 { background: var(--status-1); color: #1f2937; }
+        .person-cell.status-2 { background: var(--status-2); color: white; }
+        .person-cell.status-3 { background: var(--status-3); color: white; }
+        .person-cell.status-4 { background: var(--status-4); color: #1f2937; }
+        .person-cell.status-5 { background: var(--status-5); color: white; }
+
+        .situation-btn-row { display: flex; gap: 6px; margin-top: 10px; flex-shrink: 0; }
+        .situation-btn { flex: 1; padding: 14px 10px; background: white; color: var(--bg-dark); border: 2px solid var(--bg-dark); border-radius: 20px; font-size: 0.95em; font-weight: 600; text-align: center; cursor: pointer; line-height: 1.6; transition: background 0.15s, color 0.15s; }
+        .situation-btn:hover, .situation-btn:active { background: var(--bg-dark); color: white; }
+
+        .company-summary { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 16px 20px; border-radius: 20px; margin-top: 12px; flex-shrink: 0; text-align: center; font-size: 1.1em; line-height: 1.6; }
+
+        .function-bar { display: flex; gap: 8px; margin-top: 12px; flex-shrink: 0; }
+        .function-btn { flex: 1; padding: 16px 10px; border: none; border-radius: 20px; color: white; cursor: pointer; font-size: 1.1em; font-weight: 600; transition: opacity 0.15s; }
+        .function-btn:active { opacity: 0.7; }
+        .function-btn.btn-search { background: #8b5cf6; }
+        .function-btn.btn-report { background: #10b981; }
+        .function-btn.btn-duty { background: #06b6d4; }
+        .function-btn.btn-guard { background: #f97316; }
+        .function-btn.btn-emergency { background: #ef4444; }
+
+        /* ===== 排级页面 ===== */
+        .squad-header-row { display: flex; gap: 6px; margin-bottom: 6px; flex-shrink: 0; }
+        .squad-header-pill { flex: 1; padding: 6px 4px; background: var(--bg-dark); color: white; border: none; border-radius: 20px; font-size: 0.85em; font-weight: 600; text-align: center; cursor: pointer; transition: opacity 0.15s; }
+        .squad-header-pill:hover, .squad-header-pill:active { opacity: 0.7; }
+
+        .squad-grid-area { flex: 1; display: grid; gap: 6px; min-height: 0; }
+        .squad-grid-area.grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .squad-grid-area.grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .squad-grid-area.grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .squad-grid-area.grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+        .squad-col { display: flex; flex-direction: column; background: white; border-radius: 8px; overflow: hidden; min-height: 0; }
+        .squad-col-inner { flex: 1; display: grid; gap: 2px; padding: 3px; min-height: 0; }
+
+        .squad-person-cell { border-radius: 3px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 600; cursor: pointer; transition: transform 0.1s; padding: 2px; color: white; }
+        .squad-person-cell:active { transform: scale(0.95); }
+        .squad-person-cell .cell-name { font-size: 0.7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: center; }
+        .squad-person-cell.status-0 { background: var(--status-0); }
+        .squad-person-cell.status-1 { background: var(--status-1); }
+        .squad-person-cell.status-2 { background: var(--status-2); }
+        .squad-person-cell.status-3 { background: var(--status-3); }
+        .squad-person-cell.status-4 { background: var(--status-4); }
+        .squad-person-cell.status-5 { background: var(--status-5); }
+
+        .squad-situation-row { display: flex; gap: 6px; margin-top: 8px; flex-shrink: 0; }
+        .squad-situation-btn { flex: 1; padding: 10px 6px; background: white; color: var(--bg-dark); border: 2px solid var(--bg-dark); border-radius: 20px; font-size: 0.75em; font-weight: 600; text-align: center; cursor: pointer; line-height: 1.5; transition: background 0.15s, color 0.15s; }
+        .squad-situation-btn:hover, .squad-situation-btn:active { background: var(--bg-dark); color: white; }
+
+        .platoon-summary { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 12px 16px; border-radius: 20px; margin-top: 10px; flex-shrink: 0; text-align: center; font-size: 0.95em; line-height: 1.6; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 10px; padding: 20px; max-width: 400px; width: 90%; max-height: 70vh; overflow-y: auto; }
+        .modal h2 { margin-bottom: 15px; color: var(--bg-dark); font-size: 1.1em; }
+        .modal-close { float: right; background: none; border: none; font-size: 1.3em; cursor: pointer; color: #6b7280; }
+        .form-group textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; resize: vertical; min-height: 80px; font-family: inherit; }
+
+        .stats-bar { background: white; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; font-size: 0.8em; flex-shrink: 0; flex-wrap: wrap; }
+        .stats-bar .main { font-weight: 600; }
+        .stats-bar .special { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+        .stats-bar .special-item { padding: 2px 6px; background: #fef3c7; border-radius: 4px; font-size: 0.85em; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 600px) {
+            body { font-size: 12px; }
+            .header { padding: 6px 10px; }
+            .header h1 { font-size: 0.95em; }
+            .position-badge { font-size: 0.7em; padding: 3px 8px; }
+            .logout-btn { font-size: 0.7em; padding: 3px 8px; }
+            .content { padding: 6px; overflow: hidden; }
+            .legend { font-size: 0.65em; gap: 6px; padding: 4px 8px; }
+            .legend-color { width: 10px; height: 10px; }
+
+            .platoon-header-pill { font-size: 0.75em; padding: 5px 2px; border-radius: 16px; }
+            .person-cell { min-height: 12px; border-radius: 2px; }
+            .person-cell .name { font-size: 0.45em; }
+            .person-cell .status-text { font-size: 0.35em; }
+            .person-col-inner { gap: 1px; padding: 1px; }
+            .squad-block-header { font-size: 0.6em; padding: 2px 4px; }
+            .squad-person-grid { gap: 1px; padding: 2px; }
+
+            .situation-btn { font-size: 0.9em; padding: 10px 6px; border-radius: 16px; line-height: 1.5; }
+            .company-summary { border-radius: 16px; padding: 12px 14px; font-size: 1.05em; }
+
+            .function-btn { font-size: 1em; padding: 13px 8px; border-radius: 16px; }
+
+            /* 排级页面移动端适配 */
+            .squad-header-pill { font-size: 0.75em; padding: 5px 2px; border-radius: 16px; }
+            .squad-person-cell { border-radius: 2px; padding: 1px; }
+            .squad-person-cell .cell-name { font-size: 0.6em; }
+            .squad-col-inner { gap: 1px; padding: 2px; }
+            .squad-situation-btn { font-size: 0.65em; padding: 6px 3px; border-radius: 14px; line-height: 1.3; }
+            .platoon-summary { border-radius: 16px; padding: 8px 12px; font-size: 0.85em; }
+
+            .squad-grid-2x6 .person-cell { min-height: 32px; }
+            .squad-grid-2x6 .person-cell .name { font-size: 0.8em; }
+
+            .modal { padding: 15px; }
+            .modal h2 { font-size: 1em; }
+        }
+
+        @media (max-width: 380px) {
+            .platoon-header-pill { font-size: 0.68em; }
+            .person-cell .name { font-size: 0.45em; }
+            .function-btn { font-size: 0.62em; padding: 6px 3px; }
+            .situation-btn { font-size: 0.62em; }
+            .squad-block-header { font-size: 0.55em; }
+            .squad-person-grid { gap: 1px; padding: 1px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="companyPage" class="page active">
+    <div class="header">
+        <h1>39队人员情况总览</h1>
+        <div class="user-info">
+            <span class="position-badge" id="companyPosition"></span>
+            <button class="logout-btn" onclick="handleLogout()">退出</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div>
+            <div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div>
+            <div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div>
+            <div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div>
+            <div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div>
+            <div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div>
+        </div>
+        <!-- 排标题行 -->
+        <div class="platoon-header-row" id="platoonHeaderRow"></div>
+        <!-- 人员格子区域 -->
+        <div class="person-grid-area" id="personGridArea"></div>
+        <!-- 情况按钮行 -->
+        <div class="situation-btn-row" id="situationBtnRow"></div>
+        <!-- 情况汇总 -->
+        <div class="company-summary" id="companySummary"></div>
+        <!-- 功能按钮（顺序：查人 发布公差 报人 排岗 紧急命令） -->
+        <div class="function-bar">
+            <button class="function-btn btn-search" onclick="openModal('search')">查人</button>
+            <button class="function-btn btn-duty" onclick="openModal('duty')">发布公差</button>
+            <button class="function-btn btn-report" onclick="openModal('report')">报人</button>
+            <button class="function-btn btn-guard" onclick="openModal('guard')">排岗</button>
+            <button class="function-btn btn-emergency" onclick="openModal('emergency')">紧急命令</button>
+        </div>
+    </div>
+</div>
+
+<div id="platoonPage" class="page">
+    <div class="header">
+        <h1 id="platoonTitle">排级人员情况</h1>
+        <div class="user-info">
+            <span class="position-badge" id="platoonPosition">排长</span>
+            <button class="logout-btn" onclick="handleLogout()">退出</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div>
+            <div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div>
+            <div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div>
+            <div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div>
+            <div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div>
+            <div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div>
+        </div>
+        <!-- 班标题行 -->
+        <div class="squad-header-row" id="squadHeaderRow"></div>
+        <!-- 人员格子区域 -->
+        <div class="squad-grid-area" id="squadGridArea"></div>
+        <!-- 情况按钮行 -->
+        <div class="squad-situation-row" id="squadSituationRow"></div>
+        <!-- 情况总览 -->
+        <div class="platoon-summary" id="platoonSummary"></div>
+        <!-- 功能按钮 -->
+        <div class="function-bar">
+            <button class="function-btn btn-search" onclick="openModal('search')">查人</button>
+            <button class="function-btn btn-report" onclick="openModal('report')">报人</button>
+            <button class="function-btn btn-duty" onclick="openModal('duty')">发布公差</button>
+        </div>
+    </div>
+</div>
+
+<div id="squadPage" class="page">
+    <div class="header">
+        <h1 id="squadTitle">班级人员情况</h1>
+        <div class="user-info">
+            <span class="position-badge" id="squadPosition"></span>
+            <button class="logout-btn" onclick="handleLogout()">退出</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="breadcrumb">
+            <a onclick="showCompanyPage()">连级</a>
+            <span>&gt;</span>
+            <a onclick="showPlatoonPage(currentPlatoon)" id="squadBreadcrumbPlatoon"></a>
+            <span>&gt;</span>
+            <span class="current" id="squadBreadcrumb"></span>
+        </div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div>
+            <div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div>
+            <div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div>
+            <div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div>
+            <div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div>
+            <div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div>
+        </div>
+        <div class="function-bar">
+            <button class="function-btn btn-report" onclick="openModal('report')">报人</button>
+            <button class="function-btn btn-search" onclick="openModal('search')">查人</button>
+            <button class="function-btn btn-duty" onclick="openModal('duty')">发布公差</button>
+        </div>
+        <div class="course-info" id="squadCourseInfo">
+            <h2 id="squadCourseTitle">课程信息</h2>
+            <div class="details" id="squadCourseDetails"></div>
+            <div class="location" id="squadCourseLocation"></div>
+        </div>
+        <div class="main-area">
+            <div class="squad-layout" id="squadDetail"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2 id="modalTitle">功能</h2>
+        <div id="modalContent"></div>
+    </div>
+</div>
+
+<script>
+let currentView = 'company';
+let currentPlatoon = null;
+let currentSquad = null;
+
+const statusNames = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差勤务', 3: '病号/请假', 4: '岗哨', 5: '其他' };
+const platoonStructure = { 1: { squads: 5, name: '一排' }, 2: { squads: 4, name: '二排' }, 3: { squads: 4, name: '三排' }, 4: { squads: 4, name: '四排' } };
+const courseSchedule = { '一排': { course: '战术训练', location: '训练场A', time: '08:00-11:30' }, '二排': { course: '政治教育', location: '教室201', time: '08:00-11:30' }, '三排': { course: '体能训练', location: '操场', time: '08:00-11:30' }, '四排': { course: '专业学习', location: '实验室', time: '08:00-11:30' } };
+
+const mockData = generateMockData();
+
+function generateMockData() {
+    const data = {};
+    let personId = 1;
+    const firstNames = ['张', '李', '王', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '马', '胡', '郭', '林', '何', '高', '梁', '郑'];
+    const lastNames = ['伟', '芳', '娜', '敏', '静', '强', '磊', '军', '洋', '勇', '艳', '杰', '娟', '涛', '明', '超', '秀英', '华', '平', '刚'];
+    const statusDistribution = [0.6, 0.1, 0.08, 0.1, 0.05, 0.07];
+    for (let p = 1; p <= 4; p++) {
+        data[p] = {};
+        for (let s = 1; s <= platoonStructure[p].squads; s++) {
+            data[p][s] = [];
+            for (let i = 0; i < 12; i++) {
+                const name = firstNames[Math.floor(Math.random() * firstNames.length)] + lastNames[Math.floor(Math.random() * lastNames.length)];
+                const rand = Math.random();
+                let status = 0, cumulative = 0;
+                for (let si = 0; si < statusDistribution.length; si++) { cumulative += statusDistribution[si]; if (rand < cumulative) { status = si; break; } }
+                data[p][s].push({ id: personId++, name, status: status.toString(), remark: '' });
+            }
+        }
+    }
+    return data;
+}
+
+function handleLogout() { currentView = 'company'; currentPlatoon = null; currentSquad = null; showCompanyPage(); }
+function showPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showCompanyPage() { currentView = 'company'; showPage('companyPage'); renderCompanyPage(); }
+function showPlatoonPage(p) { if (p) currentPlatoon = p; currentView = 'platoon'; showPage('platoonPage'); renderPlatoonPage(); }
+function showSquadPage(p, s) { currentPlatoon = p; currentSquad = s; currentView = 'squad'; showPage('squadPage'); renderSquadPage(); }
+function sortPersons(persons) { return [...persons].sort((a, b) => parseInt(a.status) - parseInt(b.status)); }
+
+function renderCompanyPage() {
+    let total = 0, sc = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (let p = 1; p <= 4; p++) for (let s = 1; s <= platoonStructure[p].squads; s++) { mockData[p][s].forEach(per => { total++; sc[per.status]++; }); }
+
+    // 排标题行
+    const headerRow = document.getElementById('platoonHeaderRow');
+    headerRow.innerHTML = '';
+    for (let p = 1; p <= 4; p++) {
+        const pi = platoonStructure[p];
+        const btn = document.createElement('button');
+        btn.className = 'platoon-header-pill';
+        btn.textContent = pi.name;
+        btn.onclick = () => showPlatoonPage(p);
+        headerRow.appendChild(btn);
+    }
+
+    // 人员格子区域
+    const gridArea = document.getElementById('personGridArea');
+    gridArea.className = 'person-grid-area grid-4';
+    gridArea.innerHTML = '';
+    for (let p = 1; p <= 4; p++) {
+        const pd = mockData[p], pi = platoonStructure[p];
+        const col = document.createElement('div');
+        col.className = 'person-col';
+        const colInner = document.createElement('div');
+        colInner.className = 'person-col-inner';
+        for (let s = 1; s <= pi.squads; s++) {
+            const squad = pd[s], sorted = sortPersons(squad);
+            const cells = sorted.map(per => `<div class="person-cell status-${per.status}"></div>`).join('');
+            colInner.innerHTML += `<div class="squad-block" data-count="${squad.length}"><div class="squad-person-grid">${cells}</div></div>`;
+        }
+        col.appendChild(colInner);
+        gridArea.appendChild(col);
+    }
+
+    // 计算每个班的最佳网格行列数
+    requestAnimationFrame(() => {
+        gridArea.querySelectorAll('.squad-block').forEach(block => {
+            const grid = block.querySelector('.squad-person-grid');
+            const count = parseInt(block.dataset.count);
+            const w = block.clientWidth - 6; // padding
+            const h = block.clientHeight - 6;
+            if (w <= 0 || h <= 0) return;
+            // 找到最佳行列组合，使格子尽可能接近正方形
+            let bestCols = 1, bestScore = Infinity;
+            for (let cols = 1; cols <= count; cols++) {
+                const rows = Math.ceil(count / cols);
+                const cellW = (w - (cols - 1) * 2) / cols;
+                const cellH = (h - (rows - 1) * 2) / rows;
+                if (cellW <= 0 || cellH <= 0) continue;
+                const score = Math.abs(cellW - cellH);
+                if (score < bestScore) { bestScore = score; bestCols = cols; }
+            }
+            const rows = Math.ceil(count / bestCols);
+            grid.style.gridTemplateColumns = `repeat(${bestCols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        });
+    });
+
+    // 情况按钮行（显示各排人员情况）
+    const sitRow = document.getElementById('situationBtnRow');
+    sitRow.innerHTML = '';
+    for (let p = 1; p <= 4; p++) {
+        const pi = platoonStructure[p], pd = mockData[p];
+        let pt = 0, psc = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        for (let s = 1; s <= pi.squads; s++) pd[s].forEach(per => { pt++; psc[per.status]++; });
+        const present = pt - psc[3] - psc[4];
+        const btn = document.createElement('button');
+        btn.className = 'situation-btn';
+        btn.innerHTML = `应到${pt} 实到${present} <span style="color:var(--status-4)">${psc[4]}人岗哨</span> <span style="color:var(--status-3)">${psc[3]}人病号</span>`;
+        btn.onclick = () => showPlatoonPage(p);
+        sitRow.appendChild(btn);
+    }
+
+    // 情况汇总（去掉标题，显示文字描述，数字带颜色）
+    const present = total - sc[3] - sc[4];
+    document.getElementById('companySummary').innerHTML =
+        `应到<span style="font-weight:700;font-size:1.1em">${total}</span>人，` +
+        `实到<span style="font-weight:700;font-size:1.1em">${present}</span>人，` +
+        `<span style="color:var(--status-4);font-weight:700">${sc[4]}</span>人岗哨` +
+        `<span style="color:var(--status-3);font-weight:700">${sc[3]}</span>人病号` +
+        `<span style="color:var(--status-2);font-weight:700">${sc[2]}</span>人公差` +
+        `<span style="color:var(--status-1);font-weight:700">${sc[1]}</span>人竞赛`;
+}
+
+function renderPlatoonPage() {
+    const p = currentPlatoon, pi = platoonStructure[p], pd = mockData[p];
+    document.getElementById('platoonTitle').textContent = `${pi.name}人员情况`;
+
+    // 班标题行
+    const headerRow = document.getElementById('squadHeaderRow');
+    headerRow.innerHTML = '';
+    for (let s = 1; s <= pi.squads; s++) {
+        const btn = document.createElement('button');
+        btn.className = 'squad-header-pill';
+        btn.textContent = `${s}班`;
+        btn.onclick = () => showSquadPage(p, s);
+        headerRow.appendChild(btn);
+    }
+
+    // 人员格子区域（每班一列，班内2列网格，显示名字）
+    const gridArea = document.getElementById('squadGridArea');
+    gridArea.className = `squad-grid-area grid-${pi.squads}`;
+    gridArea.innerHTML = '';
+    for (let s = 1; s <= pi.squads; s++) {
+        const squad = pd[s], sorted = sortPersons(squad);
+        const col = document.createElement('div');
+        col.className = 'squad-col';
+        const colInner = document.createElement('div');
+        colInner.className = 'squad-col-inner';
+        colInner.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        colInner.style.gridAutoRows = '1fr';
+        sorted.forEach(per => {
+            const cell = document.createElement('div');
+            cell.className = `squad-person-cell status-${per.status}`;
+            cell.innerHTML = `<span class="cell-name">${per.name}</span>`;
+            cell.onclick = () => showSquadPage(p, s);
+            colInner.appendChild(cell);
+        });
+        col.appendChild(colInner);
+        gridArea.appendChild(col);
+    }
+
+    // 情况按钮行（每个班一个按钮，显示该班情况，包含具体人名）
+    const sitRow = document.getElementById('squadSituationRow');
+    sitRow.innerHTML = '';
+    for (let s = 1; s <= pi.squads; s++) {
+        const squad = pd[s];
+        let st = squad.length, ssc = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        let sickNames = [], guardNames = [], dutyNames = [], contestNames = [], otherNames = [];
+        squad.forEach(per => {
+            ssc[per.status]++;
+            if (per.status === '3') sickNames.push(per.name);
+            if (per.status === '4') guardNames.push(per.name);
+            if (per.status === '2') dutyNames.push(per.name);
+            if (per.status === '1') contestNames.push(per.name);
+            if (per.status === '5') otherNames.push(per.name);
+        });
+        const present = st - ssc[3] - ssc[4];
+        const btn = document.createElement('button');
+        btn.className = 'squad-situation-btn';
+        let btnHtml = `应到${st} 实到${present}`;
+        if (sickNames.length > 0) btnHtml += ` <span style="color:var(--status-3)">${ssc[3]}人病号(${sickNames.join('、')})</span>`;
+        if (guardNames.length > 0) btnHtml += ` <span style="color:var(--status-4)">${ssc[4]}人岗哨(${guardNames.join('、')})</span>`;
+        if (dutyNames.length > 0) btnHtml += ` <span style="color:var(--status-2)">${ssc[2]}人公差(${dutyNames.join('、')})</span>`;
+        if (contestNames.length > 0) btnHtml += ` <span style="color:var(--status-1)">${ssc[1]}人竞赛(${contestNames.join('、')})</span>`;
+        if (otherNames.length > 0) btnHtml += ` <span style="color:var(--status-5)">${ssc[5]}人其他(${otherNames.join('、')})</span>`;
+        btn.innerHTML = btnHtml;
+        btn.onclick = () => showSquadPage(p, s);
+        sitRow.appendChild(btn);
+    }
+
+    // 情况总览（列出具体人名）
+    let total = 0, tsc = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let sickNames = [], guardNames = [], dutyNames = [], contestNames = [], otherNames = [];
+    for (let s = 1; s <= pi.squads; s++) {
+        pd[s].forEach(per => {
+            total++;
+            tsc[per.status]++;
+            if (per.status === '3') sickNames.push(per.name);
+            if (per.status === '4') guardNames.push(per.name);
+            if (per.status === '2') dutyNames.push(per.name);
+            if (per.status === '1') contestNames.push(per.name);
+            if (per.status === '5') otherNames.push(per.name);
+        });
+    }
+    const present = total - tsc[3] - tsc[4];
+    let summaryHtml = `应到<span style="font-weight:700">${total}</span>人，实到<span style="font-weight:700">${present}</span>人`;
+    if (sickNames.length > 0) summaryHtml += `，<span style="color:var(--status-3);font-weight:700">${sickNames.length}</span>人病号(${sickNames.join('、')})`;
+    if (guardNames.length > 0) summaryHtml += `，<span style="color:var(--status-4);font-weight:700">${guardNames.length}</span>人岗哨(${guardNames.join('、')})`;
+    if (dutyNames.length > 0) summaryHtml += `，<span style="color:var(--status-2);font-weight:700">${dutyNames.length}</span>人公差(${dutyNames.join('、')})`;
+    if (contestNames.length > 0) summaryHtml += `，<span style="color:var(--status-1);font-weight:700">${contestNames.length}</span>人竞赛(${contestNames.join('、')})`;
+    if (otherNames.length > 0) summaryHtml += `，<span style="color:var(--status-5);font-weight:700">${otherNames.length}</span>人其他(${otherNames.join('、')})`;
+    document.getElementById('platoonSummary').innerHTML = summaryHtml;
+}
+
+function renderSquadPage() {
+    const p = currentPlatoon, s = currentSquad, pi = platoonStructure[p], sd = mockData[p][s], course = courseSchedule[pi.name];
+    document.getElementById('squadTitle').textContent = `${pi.name}${s}班`;
+    document.getElementById('squadBreadcrumbPlatoon').textContent = pi.name;
+    document.getElementById('squadBreadcrumb').textContent = `${s}班`;
+    document.getElementById('squadCourseTitle').textContent = course.course;
+    document.getElementById('squadCourseDetails').textContent = course.time;
+    document.getElementById('squadCourseLocation').textContent = course.location;
+    let sc = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    sd.forEach(per => { sc[per.status]++; });
+    const sorted = sortPersons(sd);
+    let cells = sorted.map(per => `<div class="person-cell status-${per.status}"><div class="name">${per.name}</div><div class="status-text">${statusNames[per.status]}</div></div>`).join('');
+    document.getElementById('squadDetail').innerHTML = `<h3>${pi.name}${s}班 (${sd.length}人 正常${sc[0]} 特殊${sd.length - sc[0]})</h3><div class="squad-grid-2x6">${cells}</div>`;
+}
+
+function openModal(type) {
+    const modal = document.getElementById('modalOverlay');
+    const title = document.getElementById('modalTitle');
+    const content = document.getElementById('modalContent');
+    modal.classList.add('active');
+    switch (type) {
+        case 'search':
+            title.textContent = '查询人员';
+            content.innerHTML = `<div class="form-group"><label>输入姓名</label><input type="text" id="searchName" placeholder="请输入姓名"></div><button class="btn" onclick="searchPerson()">查询</button><div id="searchResults"></div>`;
+            break;
+        case 'duty':
+            title.textContent = '发布公差';
+            content.innerHTML = `<div class="form-group"><label>选择人员</label><select id="dutyPerson"></select></div><div class="form-group"><label>公差内容</label><input type="text" id="dutyContent" placeholder="请输入公差内容"></div><div class="form-group"><label>时间</label><input type="datetime-local" id="dutyTime"></div><button class="btn" onclick="publishDuty()">发布</button>`;
+            loadPersonSelect();
+            break;
+        case 'report':
+            title.textContent = '报人';
+            content.innerHTML = `<div class="form-group"><label>选择人员</label><select id="reportPerson"></select></div><div class="form-group"><label>状态</label><select id="reportStatus"><option value="0">正常/训练/休息</option><option value="1">俱乐部/竞赛</option><option value="2">公差勤务/办公</option><option value="3">病号/外出/家属来/请假</option><option value="4">岗哨</option><option value="5">其他</option></select></div><div class="form-group"><label>备注</label><input type="text" id="reportRemark" placeholder="可选备注"></div><button class="btn btn-success" onclick="reportPerson()">提交</button>`;
+            loadPersonSelect();
+            break;
+        case 'guard':
+            title.textContent = '排岗';
+            content.innerHTML = `<div class="form-group"><label>选择人员</label><select id="guardPerson"></select></div><div class="form-group"><label>岗哨位置</label><input type="text" id="guardLocation" placeholder="请输入岗哨位置"></div><div class="form-group"><label>时间</label><input type="datetime-local" id="guardTime"></div><button class="btn btn-warning" onclick="assignGuard()">安排</button>`;
+            loadPersonSelect();
+            break;
+        case 'emergency':
+            title.textContent = '紧急命令';
+            content.innerHTML = `<div class="form-group"><label>命令内容</label><textarea id="emergencyContent" placeholder="请输入紧急命令内容"></textarea></div><div class="form-group"><label>接收范围</label><select id="emergencyScope"><option value="all">全队</option><option value="platoon">指定排</option><option value="squad">指定班</option></select></div><button class="btn btn-danger" onclick="sendEmergency()">发送</button>`;
+            break;
+    }
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+function loadPersonSelect() {
+    ['dutyPerson', 'reportPerson', 'guardPerson'].forEach(id => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        let opts = '<option value="">请选择</option>';
+        for (let p = 1; p <= 4; p++) for (let s = 1; s <= platoonStructure[p].squads; s++) mockData[p][s].forEach(per => { opts += `<option value="${p}-${s}-${per.id}">${platoonStructure[p].name}${s}班 - ${per.name}</option>`; });
+        select.innerHTML = opts;
+    });
+}
+
+function searchPerson() {
+    const name = document.getElementById('searchName').value;
+    if (!name) return;
+    let results = [];
+    for (let p = 1; p <= 4; p++) for (let s = 1; s <= platoonStructure[p].squads; s++) mockData[p][s].forEach(per => { if (per.name.includes(name)) results.push({ ...per, p, s, pname: platoonStructure[p].name }); });
+    const div = document.getElementById('searchResults');
+    if (results.length === 0) { div.innerHTML = '<p style="margin-top: 10px; color: #6b7280;">未找到</p>'; }
+    else { div.innerHTML = results.map(r => `<div style="padding: 8px; background: var(--bg-light); border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between;"><div><span style="font-weight: 600;">${r.name}</span> <span style="color: #6b7280; font-size: 0.85em;">${r.pname}${r.s}班</span></div><span style="padding: 2px 8px; border-radius: 10px; color: white; font-size: 0.8em; background: var(--status-${r.status})">${statusNames[r.status]}</span></div>`).join(''); }
+}
+
+function publishDuty() { const pv = document.getElementById('dutyPerson').value, c = document.getElementById('dutyContent').value; if (!pv || !c) { alert('请填写完整'); return; } const [p, s, id] = pv.split('-').map(Number); const per = mockData[p][s].find(x => x.id === id); if (per) per.status = '2'; alert('已发布'); closeModal(); refreshCurrentView(); }
+function reportPerson() { const pv = document.getElementById('reportPerson').value, st = document.getElementById('reportStatus').value, r = document.getElementById('reportRemark').value; if (!pv) { alert('请选择人员'); return; } const [p, s, id] = pv.split('-').map(Number); const per = mockData[p][s].find(x => x.id === id); if (per) { per.status = st; per.remark = r; } alert('已报备'); closeModal(); refreshCurrentView(); }
+function assignGuard() { const pv = document.getElementById('guardPerson').value, l = document.getElementById('guardLocation').value; if (!pv || !l) { alert('请填写完整'); return; } const [p, s, id] = pv.split('-').map(Number); const per = mockData[p][s].find(x => x.id === id); if (per) per.status = '4'; alert('已安排'); closeModal(); refreshCurrentView(); }
+function sendEmergency() { const c = document.getElementById('emergencyContent').value; if (!c) { alert('请输入内容'); return; } alert('已发送'); closeModal(); }
+function refreshCurrentView() { if (currentView === 'company') renderCompanyPage(); else if (currentView === 'platoon') renderPlatoonPage(); else renderSquadPage(); }
+
+document.getElementById('modalOverlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+// 初始化：直接显示连级页面
+renderCompanyPage();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人员在线表生成器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; justify-content: center; padding: 30px 20px; }
+        .container { max-width: 680px; width: 100%; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px; }
+        h1 { text-align: center; color: #1a1a2e; font-size: 1.6em; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 24px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .step-title { font-size: 1.15em; color: #333; font-weight: 600; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #3b82f6; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; color: #444; font-size: 0.92em; }
+        .form-group input { width: 100%; padding: 10px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1em; transition: border-color 0.2s; }
+        .form-group input:focus { outline: none; border-color: #3b82f6; }
+        .btn { padding: 10px 28px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; color: white; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.85; }
+        .btn:active { opacity: 0.7; }
+        .btn-primary { background: #3b82f6; }
+        .btn-success { background: #22c55e; }
+        .btn-secondary { background: #9ca3af; }
+        .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
+        .progress-bar { display: flex; justify-content: center; align-items: center; gap: 0; margin-bottom: 24px; }
+        .progress-step { display: flex; align-items: center; gap: 0; }
+        .progress-circle { width: 32px; height: 32px; border-radius: 50%; background: #ddd; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85em; transition: background 0.3s; }
+        .progress-circle.active { background: #3b82f6; }
+        .progress-circle.done { background: #22c55e; }
+        .progress-line { width: 40px; height: 3px; background: #ddd; }
+        .progress-line.done { background: #22c55e; }
+        .section-box { background: #f8f9fa; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; border-left: 4px solid #3b82f6; }
+        .section-box h3 { color: #3b82f6; margin-bottom: 10px; font-size: 1em; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .summary-table th, .summary-table td { border: 1px solid #e5e7eb; padding: 10px 14px; text-align: center; font-size: 0.95em; }
+        .summary-table th { background: #f3f4f6; font-weight: 600; color: #333; }
+        .summary-table tr:last-child { font-weight: 700; background: #eff6ff; }
+        .error-tip { color: #ef4444; font-size: 0.85em; margin-top: 6px; display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>人员在线表生成器</h1>
+        <p class="subtitle">按步骤填写信息，自动生成在线表</p>
+
+        <div class="progress-bar" id="progressBar"></div>
+
+        <!-- Step 1 -->
+        <div class="step active" id="step1">
+            <div class="step-title">第一步：输入排数</div>
+            <div class="form-group">
+                <label>共有几个排？</label>
+                <input type="number" id="platoonCount" min="1" max="10" value="4" placeholder="请输入排数（1-10）">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" id="btnStep1Next">下一步 &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step" id="step2">
+            <div class="step-title">第二步：每个排有几个班？</div>
+            <div id="platoonSquadInputs"></div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="btnStep2Back">&larr; 上一步</button>
+                <button class="btn btn-primary" id="btnStep2Next">下一步 &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step" id="step3">
+            <div class="step-title">第三步：每个班有几个人？</div>
+            <div id="squadPersonInputs"></div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="btnStep3Back">&larr; 上一步</button>
+                <button class="btn btn-primary" id="btnStep3Next">下一步 &rarr;</button>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step" id="step4">
+            <div class="step-title">第四步：确认信息并生成</div>
+            <div id="summaryArea"></div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="btnStep4Back">&larr; 上一步</button>
+                <button class="btn btn-success" id="btnGenerate">生成在线表</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var totalSteps = 4;
+    var currentStep = 1;
+    var config = { platoonCount: 0, platoons: [] };
+
+    var pNames = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+
+    function getPlatoonName(n) {
+        return pNames[n - 1] + '排';
+    }
+
+    function renderProgress() {
+        var html = '';
+        for (var i = 1; i <= totalSteps; i++) {
+            if (i > 1) {
+                html += '<div class="progress-line' + (i <= currentStep ? ' done' : '') + '"></div>';
+            }
+            var cls = 'progress-circle';
+            if (i < currentStep) cls += ' done';
+            if (i === currentStep) cls += ' active';
+            html += '<div class="' + cls + '">' + i + '</div>';
+        }
+        document.getElementById('progressBar').innerHTML = html;
+    }
+
+    function showStep(n) {
+        currentStep = n;
+        var steps = document.querySelectorAll('.step');
+        for (var i = 0; i < steps.length; i++) {
+            steps[i].classList.remove('active');
+        }
+        document.getElementById('step' + n).classList.add('active');
+        renderProgress();
+        window.scrollTo(0, 0);
+    }
+
+    // Step 1 -> Step 2
+    document.getElementById('btnStep1Next').addEventListener('click', function() {
+        var count = parseInt(document.getElementById('platoonCount').value);
+        if (!count || count < 1 || count > 10) {
+            alert('请输入有效的排数（1-10）');
+            return;
+        }
+        config.platoonCount = count;
+        buildPlatoonSquadInputs();
+        showStep(2);
+    });
+
+    // Step 2 -> Step 1
+    document.getElementById('btnStep2Back').addEventListener('click', function() {
+        showStep(1);
+    });
+
+    // Step 2 -> Step 3
+    document.getElementById('btnStep2Next').addEventListener('click', function() {
+        config.platoons = [];
+        for (var p = 1; p <= config.platoonCount; p++) {
+            var el = document.getElementById('squadCount_' + p);
+            var squadCount = parseInt(el.value);
+            if (!squadCount || squadCount < 1 || squadCount > 10) {
+                alert('请输入' + getPlatoonName(p) + '的有效班数（1-10）');
+                el.focus();
+                return;
+            }
+            config.platoons.push({ id: p, squadCount: squadCount });
+        }
+        buildSquadPersonInputs();
+        showStep(3);
+    });
+
+    // Step 3 -> Step 2
+    document.getElementById('btnStep3Back').addEventListener('click', function() {
+        showStep(2);
+    });
+
+    // Step 3 -> Step 4
+    document.getElementById('btnStep3Next').addEventListener('click', function() {
+        for (var p = 0; p < config.platoons.length; p++) {
+            config.platoons[p].squads = [];
+            for (var s = 1; s <= config.platoons[p].squadCount; s++) {
+                var el = document.getElementById('personCount_' + p + '_' + s);
+                var count = parseInt(el.value);
+                if (!count || count < 1 || count > 50) {
+                    alert('请输入' + getPlatoonName(p + 1) + '第' + s + '班的有效人数（1-50）');
+                    el.focus();
+                    return;
+                }
+                config.platoons[p].squads.push(count);
+            }
+        }
+        buildSummary();
+        showStep(4);
+    });
+
+    // Step 4 -> Step 3
+    document.getElementById('btnStep4Back').addEventListener('click', function() {
+        showStep(3);
+    });
+
+    // Generate
+    document.getElementById('btnGenerate').addEventListener('click', function() {
+        generateTable();
+    });
+
+    function buildPlatoonSquadInputs() {
+        var container = document.getElementById('platoonSquadInputs');
+        var html = '';
+        for (var p = 1; p <= config.platoonCount; p++) {
+            html += '<div class="section-box">';
+            html += '<h3>' + getPlatoonName(p) + '</h3>';
+            html += '<div class="form-group">';
+            html += '<label>有几个班？</label>';
+            html += '<input type="number" id="squadCount_' + p + '" min="1" max="10" value="4" placeholder="班数">';
+            html += '</div></div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function buildSquadPersonInputs() {
+        var container = document.getElementById('squadPersonInputs');
+        var html = '';
+        for (var p = 0; p < config.platoons.length; p++) {
+            var pName = getPlatoonName(p + 1);
+            html += '<div class="section-box">';
+            html += '<h3>' + pName + '（共' + config.platoons[p].squadCount + '个班）</h3>';
+            html += '<div class="input-grid">';
+            for (var s = 1; s <= config.platoons[p].squadCount; s++) {
+                html += '<div class="form-group">';
+                html += '<label>' + pName + ' 第' + s + '班 人数</label>';
+                html += '<input type="number" id="personCount_' + p + '_' + s + '" min="1" max="50" value="12" placeholder="人数">';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function buildSummary() {
+        var html = '<table class="summary-table">';
+        html += '<tr><th>排</th><th>班数</th><th>每班人数</th><th>小计</th></tr>';
+        var grandTotal = 0;
+        for (var p = 0; p < config.platoons.length; p++) {
+            var pName = getPlatoonName(p + 1);
+            var squads = config.platoons[p].squads;
+            var total = 0;
+            for (var i = 0; i < squads.length; i++) total += squads[i];
+            grandTotal += total;
+            html += '<tr><td>' + pName + '</td><td>' + squads.length + '</td><td>' + squads.join('、') + '</td><td>' + total + ' 人</td></tr>';
+        }
+        html += '<tr><td colspan="3">总计</td><td>' + grandTotal + ' 人</td></tr>';
+        html += '</table>';
+        document.getElementById('summaryArea').innerHTML = html;
+    }
+
+    function generateTable() {
+        var platoonCount = config.platoonCount;
+        var platoons = config.platoons;
+
+        // Build platoonStructure JS literal
+        var psParts = [];
+        for (var p = 0; p < platoonCount; p++) {
+            psParts.push((p + 1) + ':{squads:' + platoons[p].squadCount + ",name:'" + getPlatoonName(p + 1) + "'}");
+        }
+        var platoonStructureStr = '{' + psParts.join(',') + '}';
+
+        // Build mockData init code
+        var mockLines = [];
+        mockLines.push('var mockData={};');
+        mockLines.push('var personId=1;');
+        for (var p = 0; p < platoonCount; p++) {
+            mockLines.push('mockData[' + (p + 1) + ']={};');
+            for (var s = 0; s < platoons[p].squadCount; s++) {
+                var cnt = platoons[p].squads[s];
+                mockLines.push('mockData[' + (p + 1) + '][' + (s + 1) + ']=[];');
+                mockLines.push('for(var i=0;i<' + cnt + ';i++){');
+                mockLines.push('var fn=["张","李","王","刘","陈","杨","赵","黄","周","吴","徐","孙","马","胡","郭","林","何","高","梁","郑"];');
+                mockLines.push('var ln=["伟","芳","娜","敏","静","强","磊","军","洋","勇","艳","杰","娟","涛","明","超","秀英","华","平","刚"];');
+                mockLines.push('var name=fn[Math.floor(Math.random()*fn.length)]+ln[Math.floor(Math.random()*ln.length)];');
+                mockLines.push('var rand=Math.random();');
+                mockLines.push('var status=0,cumulative=0;');
+                mockLines.push('var dist=[0.6,0.1,0.08,0.1,0.05,0.07];');
+                mockLines.push('for(var si=0;si<dist.length;si++){cumulative+=dist[si];if(rand<cumulative){status=si;break;}}');
+                mockLines.push("mockData[" + (p + 1) + "][" + (s + 1) + "].push({id:personId++,name:name,status:status.toString(),remark:''});");
+                mockLines.push('}');
+            }
+        }
+        var mockDataCode = mockLines.join('\n');
+
+        // Grid columns
+        var maxSquads = 0;
+        for (var p = 0; p < platoons.length; p++) {
+            if (platoons[p].squadCount > maxSquads) maxSquads = platoons[p].squadCount;
+        }
+        var companyGridCols = platoonCount <= 4 ? platoonCount : 4;
+        var platoonDetailGridCols = maxSquads <= 4 ? maxSquads : 4;
+
+        var h = [];
+        h.push('<!DOCTYPE html>');
+        h.push('<html lang="zh-CN">');
+        h.push('<head>');
+        h.push('<meta charset="UTF-8">');
+        h.push('<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">');
+        h.push('<title>人员在线情况查询系统</title>');
+        h.push('<style>');
+        h.push(':root{--status-0:#22c55e;--status-1:#eab308;--status-2:#3b82f6;--status-3:#ef4444;--status-4:#ff8c00;--status-5:#581c87;--bg-dark:#1f2937;--bg-light:#f3f4f6;--primary:#3b82f6}');
+        h.push('*{margin:0;padding:0;box-sizing:border-box}');
+        h.push("body{background:var(--bg-light);height:100vh;overflow:hidden;font-family:'Microsoft YaHei','Segoe UI',sans-serif;font-size:14px}");
+        h.push('.page{display:none;height:100vh}.page.active{display:flex;flex-direction:column}');
+        h.push('.form-group{margin-bottom:15px}.form-group label{display:block;margin-bottom:5px;font-weight:600;color:var(--bg-dark);font-size:.9em}');
+        h.push('.form-group input,.form-group select{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:.9em}');
+        h.push('.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--primary)}');
+        h.push('.btn{width:100%;padding:12px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:1em;cursor:pointer;font-weight:600}.btn:hover{background:#2563eb}');
+        h.push('.header{background:white;padding:8px 16px;box-shadow:0 2px 4px rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}');
+        h.push('.header h1{color:var(--bg-dark);font-size:1.1em}.user-info{display:flex;align-items:center;gap:10px}');
+        h.push('.position-badge{padding:4px 10px;background:var(--primary);color:white;border-radius:12px;font-size:.8em}');
+        h.push('.logout-btn{padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-size:.8em}');
+        h.push('.content{flex:1;padding:10px;overflow:hidden;display:flex;flex-direction:column}');
+        h.push('.legend{background:white;border-radius:6px;padding:6px 12px;margin-bottom:8px;display:flex;gap:12px;justify-content:center;flex-shrink:0;font-size:.8em}');
+        h.push('.legend-item{display:flex;align-items:center;gap:4px}.legend-color{width:14px;height:14px;border-radius:3px}');
+        h.push('.legend-color.status-0{background:var(--status-0)}.legend-color.status-1{background:var(--status-1)}.legend-color.status-2{background:var(--status-2)}');
+        h.push('.legend-color.status-3{background:var(--status-3)}.legend-color.status-4{background:var(--status-4)}.legend-color.status-5{background:var(--status-5)}');
+        h.push('.function-bar{display:flex;gap:8px;margin-top:12px;flex-shrink:0}');
+        h.push('.function-btn{flex:1;padding:16px 10px;border:none;border-radius:20px;color:white;cursor:pointer;font-size:1.1em;font-weight:600;transition:opacity .15s}.function-btn:active{opacity:.7}');
+        h.push('.function-btn.btn-search{background:#8b5cf6}.function-btn.btn-duty{background:#06b6d4}.function-btn.btn-report{background:#10b981}.function-btn.btn-guard{background:#f97316}.function-btn.btn-emergency{background:#ef4444}');
+        h.push('.company-summary{background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;padding:16px 20px;border-radius:20px;margin-top:12px;flex-shrink:0;text-align:center;font-size:1.1em;line-height:1.6}');
+        h.push('.platoon-header-row{display:flex;gap:6px;margin-bottom:6px;flex-shrink:0}');
+        h.push('.platoon-header-pill{flex:1;padding:6px 4px;background:var(--bg-dark);color:white;border:none;border-radius:20px;font-size:.85em;font-weight:600;text-align:center;cursor:pointer;transition:opacity .15s}.platoon-header-pill:hover,.platoon-header-pill:active{opacity:.7}');
+        h.push('.person-grid-area{flex:1;display:grid;gap:6px;min-height:0}');
+        h.push('.person-grid-area.grid-4{grid-template-columns:repeat(4,1fr)}.person-grid-area.grid-5{grid-template-columns:repeat(5,1fr)}.person-grid-area.grid-3{grid-template-columns:repeat(3,1fr)}.person-grid-area.grid-2{grid-template-columns:repeat(2,1fr)}');
+        h.push('.person-col{display:flex;flex-direction:column;background:white;border-radius:8px;overflow:hidden;min-height:0}');
+        h.push('.person-col-inner{flex:1;display:flex;gap:2px;padding:3px;min-height:0}');
+        h.push('.squad-block{flex:1;background:#f9fafb;border-radius:4px;overflow:hidden;min-height:0}');
+        h.push('.squad-person-grid{width:100%;height:100%;display:grid;gap:2px;padding:3px}');
+        h.push('.person-cell{border-radius:2px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-weight:600}');
+        h.push('.situation-btn-row{display:flex;gap:6px;margin-top:10px;flex-shrink:0}');
+        h.push('.situation-btn{flex:1;padding:14px 10px;background:white;color:var(--bg-dark);border:2px solid var(--bg-dark);border-radius:20px;font-size:.95em;font-weight:600;text-align:center;cursor:pointer;line-height:1.6;transition:background .15s,color .15s}.situation-btn:hover,.situation-btn:active{background:var(--bg-dark);color:white}');
+        h.push('.person-cell .name{font-size:.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center}');
+        h.push('.person-cell .status-text{font-size:.5em;opacity:.8}');
+        h.push('.person-cell.status-0{background:var(--status-0);color:white}.person-cell.status-1{background:var(--status-1);color:#1f2937}');
+        h.push('.person-cell.status-2{background:var(--status-2);color:white}.person-cell.status-3{background:var(--status-3);color:white}');
+        h.push('.person-cell.status-4{background:var(--status-4);color:#1f2937}.person-cell.status-5{background:var(--status-5);color:white}');
+        h.push('.squad-situation-btn:hover,.squad-situation-btn:active{background:var(--bg-dark);color:white}');
+        h.push('.platoon-summary{background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;padding:12px 16px;border-radius:20px;margin-top:10px;flex-shrink:0;text-align:center;font-size:.95em;line-height:1.6}');
+        h.push('.squad-header-row{display:flex;gap:6px;margin-bottom:6px;flex-shrink:0}');
+        h.push('.squad-header-pill{flex:1;padding:6px 4px;background:var(--bg-dark);color:white;border:none;border-radius:20px;font-size:.85em;font-weight:600;text-align:center;cursor:pointer;transition:opacity .15s}.squad-header-pill:hover,.squad-header-pill:active{opacity:.7}');
+        h.push('.squad-grid-area{flex:1;display:grid;gap:6px;min-height:0}');
+        h.push('.squad-grid-area.grid-5{grid-template-columns:repeat(5,1fr)}.squad-grid-area.grid-4{grid-template-columns:repeat(4,1fr)}.squad-grid-area.grid-3{grid-template-columns:repeat(3,1fr)}.squad-grid-area.grid-2{grid-template-columns:repeat(2,1fr)}');
+        h.push('.squad-col{display:flex;flex-direction:column;background:white;border-radius:8px;overflow:hidden;min-height:0}');
+        h.push('.squad-col-inner{flex:1;display:grid;gap:2px;padding:3px;min-height:0}');
+        h.push('.squad-person-cell{border-radius:3px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-weight:600;cursor:pointer;transition:transform .1s;padding:2px;color:white}');
+        h.push('.squad-person-cell:active{transform:scale(.95)}');
+        h.push('.squad-person-cell .cell-name{font-size:.7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center}');
+        h.push('.squad-person-cell.status-0{background:var(--status-0)}.squad-person-cell.status-1{background:var(--status-1)}');
+        h.push('.squad-person-cell.status-2{background:var(--status-2)}.squad-person-cell.status-3{background:var(--status-3)}');
+        h.push('.squad-person-cell.status-4{background:var(--status-4)}.squad-person-cell.status-5{background:var(--status-5)}');
+        h.push('.squad-situation-row{display:flex;gap:6px;margin-top:8px;flex-shrink:0}');
+        h.push('.squad-situation-btn{flex:1;padding:10px 6px;background:white;color:var(--bg-dark);border:2px solid var(--bg-dark);border-radius:20px;font-size:.75em;font-weight:600;text-align:center;cursor:pointer;line-height:1.5;transition:background .15s,color .15s}');
+        h.push('.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center;z-index:1000}.modal-overlay.active{display:flex}');
+        h.push('.modal{background:white;border-radius:10px;padding:20px;max-width:400px;width:90%;max-height:70vh;overflow-y:auto}');
+        h.push('.modal h2{margin-bottom:15px;color:var(--bg-dark);font-size:1.1em}.modal-close{float:right;background:none;border:none;font-size:1.3em;cursor:pointer;color:#6b7280}');
+        h.push('.form-group textarea{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:.9em;resize:vertical;min-height:80px;font-family:inherit}');
+        h.push('.stats-bar{background:white;padding:6px 10px;border-radius:6px;margin-bottom:8px;display:flex;gap:12px;align-items:center;font-size:.8em;flex-shrink:0;flex-wrap:wrap}');
+        h.push('.stats-bar .main{font-weight:600}.stats-bar .special{display:flex;gap:6px;flex-wrap:wrap;flex:1}.stats-bar .special-item{padding:2px 6px;background:#fef3c7;border-radius:4px;font-size:.85em}');
+        h.push('@media(max-width:600px){');
+        h.push('body{font-size:12px}.header{padding:6px 10px}.header h1{font-size:.95em}');
+        h.push('.position-badge{font-size:.7em;padding:3px 8px}.logout-btn{font-size:.7em;padding:3px 8px}');
+        h.push('.content{padding:6px;overflow:hidden}.legend{font-size:.65em;gap:6px;padding:4px 8px}.legend-color{width:10px;height:10px}');
+        h.push('.platoon-header-pill,.platoon-column-header{font-size:.75em;padding:5px 2px}');
+        h.push('.person-cell .name{font-size:.45em}.person-cell .status-text{font-size:.35em}');
+        h.push('.squad-person-grid{gap:1px;padding:2px}');
+        h.push('.function-btn{font-size:1em;padding:13px 8px;border-radius:16px}');
+        h.push('.company-summary{border-radius:16px;padding:12px 14px;font-size:1.05em}');
+        h.push('.situation-btn{font-size:.9em;padding:10px 6px;border-radius:16px;line-height:1.5}');
+        h.push('.squad-header-pill{font-size:.75em;padding:5px 2px;border-radius:16px}');
+        h.push('.squad-person-cell{border-radius:2px;padding:1px}.squad-person-cell .cell-name{font-size:.6em}');
+        h.push('.squad-col-inner{gap:1px;padding:2px}');
+        h.push('.squad-situation-btn{font-size:.65em;padding:6px 3px;border-radius:14px;line-height:1.3}');
+        h.push('.platoon-summary{border-radius:16px;padding:8px 12px;font-size:.85em}');
+        h.push('.modal{padding:15px}.modal h2{font-size:1em}');
+        h.push('}');
+        h.push('</style>');
+        h.push('</head>');
+        h.push('<body>');
+
+        // Company
+        h.push('<div id="companyPage" class="page active">');
+        h.push('<div class="header"><h1>人员情况总览</h1><div class="user-info"><span class="position-badge" id="companyPosition"></span><button class="logout-btn" onclick="handleLogout()">退出</button></div></div>');
+        h.push('<div class="content">');
+        h.push('<div class="legend"><div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div><div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div><div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div><div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div><div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div><div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div></div>');
+        h.push('<div class="platoon-header-row" id="platoonHeaderRow"></div>');
+        h.push('<div class="person-grid-area" id="personGridArea"></div>');
+        h.push('<div class="situation-btn-row" id="situationBtnRow"></div>');
+        h.push('<div class="company-summary" id="companySummary"></div>');
+        h.push('<div class="function-bar"><button class="function-btn btn-search" onclick="openModal(\'search\')">查人</button><button class="function-btn btn-duty" onclick="openModal(\'duty\')">发布公差</button><button class="function-btn btn-report" onclick="openModal(\'report\')">报人</button><button class="function-btn btn-guard" onclick="openModal(\'guard\')">排岗</button><button class="function-btn btn-emergency" onclick="openModal(\'emergency\')">紧急命令</button></div>');
+        h.push('</div></div>');
+
+        // Platoon
+        h.push('<div id="platoonPage" class="page">');
+        h.push('<div class="header"><h1 id="platoonTitle">排级人员情况</h1><div class="user-info"><span class="position-badge" id="platoonPosition">排长</span><button class="logout-btn" onclick="handleLogout()">退出</button></div></div>');
+        h.push('<div class="content">');
+        h.push('<div class="legend"><div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div><div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div><div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div><div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div><div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div><div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div></div>');
+        h.push('<div class="squad-header-row" id="squadHeaderRow"></div>');
+        h.push('<div class="squad-grid-area" id="squadGridArea"></div>');
+        h.push('<div class="squad-situation-row" id="squadSituationRow"></div>');
+        h.push('<div class="platoon-summary" id="platoonSummary"></div>');
+        h.push('<div class="function-bar"><button class="function-btn btn-search" onclick="openModal(\'search\')">查人</button><button class="function-btn btn-report" onclick="openModal(\'report\')">报人</button><button class="function-btn btn-duty" onclick="openModal(\'duty\')">发布公差</button></div>');
+        h.push('</div></div>');
+
+        // Squad
+        h.push('<div id="squadPage" class="page">');
+        h.push('<div class="header"><h1 id="squadTitle">班级人员情况</h1><div class="user-info"><span class="position-badge" id="squadPosition"></span><button class="logout-btn" onclick="handleLogout()">退出</button></div></div>');
+        h.push('<div class="content">');
+        h.push('<div class="breadcrumb"><a onclick="showCompanyPage()">连级</a><span>&gt;</span><a onclick="showPlatoonPage(currentPlatoon)" id="squadBreadcrumbPlatoon"></a><span>&gt;</span><span class="current" id="squadBreadcrumb"></span></div>');
+        h.push('<div class="legend"><div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div><div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div><div class="legend-item"><div class="legend-color status-2"></div><span>公差</span></div><div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假</span></div><div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div><div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div></div>');
+        h.push('<div class="function-bar"><button class="function-btn btn-report" onclick="openModal(\'report\')">报人</button><button class="function-btn btn-search" onclick="openModal(\'search\')">查人</button><button class="function-btn btn-duty" onclick="openModal(\'duty\')">发布公差</button></div>');
+        h.push('<div class="course-info" id="squadCourseInfo"><h2 id="squadCourseTitle">课程信息</h2><div class="details" id="squadCourseDetails"></div><div class="location" id="squadCourseLocation"></div></div>');
+        h.push('<div class="main-area"><div class="squad-layout" id="squadDetail"></div></div>');
+        h.push('</div></div>');
+
+        // Modal
+        h.push('<div class="modal-overlay" id="modalOverlay"><div class="modal"><button class="modal-close" onclick="closeModal()">&times;</button><h2 id="modalTitle">功能</h2><div id="modalContent"></div></div></div>');
+
+        // Script
+        h.push('<script>');
+        h.push('var currentView="company",currentPlatoon=null,currentSquad=null;');
+        h.push("var statusNames={0:'正常',1:'俱乐部/竞赛',2:'公差勤务',3:'病号/请假',4:'岗哨',5:'其他'};");
+        h.push('var platoonStructure=' + platoonStructureStr + ';');
+        h.push(mockDataCode);
+
+        h.push('function handleLogout(){currentView="company";currentPlatoon=null;currentSquad=null;showCompanyPage();}');
+        h.push('function showPage(id){var ps=document.querySelectorAll(".page");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");document.getElementById(id).classList.add("active");}');
+        h.push('function showCompanyPage(){currentView="company";showPage("companyPage");renderCompanyPage();}');
+        h.push('function showPlatoonPage(p){if(p)currentPlatoon=p;currentView="platoon";showPage("platoonPage");renderPlatoonPage();}');
+        h.push('function showSquadPage(p,s){currentPlatoon=p;currentSquad=s;currentView="squad";showPage("squadPage");renderSquadPage();}');
+        h.push('function sortPersons(arr){return arr.slice().sort(function(a,b){return parseInt(a.status)-parseInt(b.status);});}');
+
+        // renderCompanyPage
+        h.push('function renderCompanyPage(){');
+        h.push('var total=0,sc={0:0,1:0,2:0,3:0,4:0,5:0};');
+        h.push('for(var p=1;p<=' + platoonCount + ';p++)for(var s=1;s<=platoonStructure[p].squads;s++)mockData[p][s].forEach(function(per){total++;sc[per.status]++;});');
+        h.push('var present=total-sc[3]-sc[4];');
+        h.push("document.getElementById('companySummary').innerHTML='应到<span style=\"font-weight:700;font-size:1.1em\">'+total+'</span>人，实到<span style=\"font-weight:700;font-size:1.1em\">'+present+'</span>人，<span style=\"color:var(--status-4);font-weight:700\">'+sc[4]+'</span>人岗哨<span style=\"color:var(--status-3);font-weight:700\">'+sc[3]+'</span>人病号<span style=\"color:var(--status-2);font-weight:700\">'+sc[2]+'</span>人公差<span style=\"color:var(--status-1);font-weight:700\">'+sc[1]+'</span>人竞赛';");
+        h.push("var headerRow=document.getElementById('platoonHeaderRow');headerRow.innerHTML='';");
+        h.push('for(var p=1;p<=' + platoonCount + ';p++){var pi=platoonStructure[p];var btn=document.createElement("button");btn.className="platoon-header-pill";btn.textContent=pi.name;btn.onclick=function(pp){return function(){showPlatoonPage(pp);}}(p);headerRow.appendChild(btn);}');
+        h.push("var gridArea=document.getElementById('personGridArea');gridArea.className='person-grid-area grid-" + companyGridCols + "';gridArea.innerHTML='';");
+        h.push('for(var p=1;p<=' + platoonCount + ';p++){');
+        h.push('var pd=mockData[p],pi=platoonStructure[p];');
+        h.push("var col=document.createElement('div');col.className='person-col';");
+        h.push("var colInner=document.createElement('div');colInner.className='person-col-inner';");
+        h.push('for(var s=1;s<=pi.squads;s++){');
+        h.push('var squad=pd[s],sorted=sortPersons(squad);');
+        h.push("var cells=sorted.map(function(per){return '<div class=\"person-cell status-'+per.status+'\"></div>';}).join('');");
+        h.push("colInner.innerHTML+='<div class=\"squad-block\" data-count=\"'+squad.length+'\"><div class=\"squad-person-grid\">'+cells+'</div></div>';");
+        h.push('}');
+        h.push('col.appendChild(colInner);gridArea.appendChild(col);}');
+        h.push("setTimeout(function(){gridArea.querySelectorAll('.squad-block').forEach(function(block){");
+        h.push("var grid=block.querySelector('.squad-person-grid'),count=parseInt(block.dataset.count);");
+        h.push("var w=block.clientWidth-6,h=block.clientHeight-6;if(w<=0||h<=0)return;");
+        h.push("var bestCols=1,bestScore=Infinity;");
+        h.push("for(var cols=1;cols<=count;cols++){var rows=Math.ceil(count/cols);var cellW=(w-(cols-1)*2)/cols;var cellH=(h-(rows-1)*2)/rows;if(cellW<=0||cellH<=0)continue;var score=Math.abs(cellW-cellH);if(score<bestScore){bestScore=score;bestCols=cols;}}");
+        h.push("var rows=Math.ceil(count/bestCols);grid.style.gridTemplateColumns='repeat('+bestCols+',1fr)';grid.style.gridTemplateRows='repeat('+rows+',1fr)';});},100);");
+        h.push("var sitRow=document.getElementById('situationBtnRow');sitRow.innerHTML='';");
+        h.push('for(var p=1;p<=' + platoonCount + ';p++){');
+        h.push('var pi=platoonStructure[p],pd=mockData[p];');
+        h.push('var pt=0,psc={0:0,1:0,2:0,3:0,4:0,5:0};');
+        h.push('for(var s=1;s<=pi.squads;s++)pd[s].forEach(function(per){pt++;psc[per.status]++;});');
+        h.push('var pPresent=pt-psc[3]-psc[4];');
+        h.push('var btn=document.createElement("button");btn.className="situation-btn";');
+        h.push('btn.innerHTML="应到"+pt+" 实到"+pPresent+" <span style=\"color:var(--status-4)\">"+psc[4]+"人岗哨</span> <span style=\"color:var(--status-3)\">"+psc[3]+"人病号</span>";');
+        h.push('btn.onclick=function(pp){return function(){showPlatoonPage(pp);}}(p);');
+        h.push('sitRow.appendChild(btn);}');
+        h.push('}');
+
+        // renderPlatoonPage
+        h.push('function renderPlatoonPage(){');
+        h.push('var p=currentPlatoon,pi=platoonStructure[p],pd=mockData[p];');
+        h.push("document.getElementById('platoonTitle').textContent=pi.name+'人员情况';");
+        h.push("document.getElementById('platoonBreadcrumb').textContent=pi.name;");
+        h.push("document.getElementById('platoonCourseTitle').textContent='课程安排';");
+        h.push("document.getElementById('platoonCourseDetails').textContent='08:00-11:30';");
+        h.push("document.getElementById('platoonCourseLocation').textContent='待定';");
+        h.push('var pt=0,psc={0:0,1:0,2:0,3:0,4:0,5:0},special=[];');
+        h.push('for(var s=1;s<=pi.squads;s++)pd[s].forEach(function(per){pt++;psc[per.status]++;if(per.status!=="0")special.push({name:per.name,status:per.status,squad:s});});');
+        h.push("var statsHtml='<span class=\"main\">'+pi.name+': '+pt+'人 正常'+psc[0]+'</span><div class=\"special\">';");
+        h.push("special.forEach(function(per){statsHtml+='<span class=\"special-item\"><span class=\"name\">'+per.name+'('+pi.name+per.squad+'班)</span><span class=\"status\">'+statusNames[per.status]+'</span></span>';});");
+        h.push("statsHtml+='</div>';document.getElementById('platoonStats').innerHTML=statsHtml;");
+        h.push("var detail=document.getElementById('platoonDetail');detail.className='platoon-layout grid-" + platoonDetailGridCols + "';detail.innerHTML='';");
+        h.push('for(var s=1;s<=pi.squads;s++){');
+        h.push('var squad=pd[s],sorted=sortPersons(squad);');
+        h.push("var normal=squad.filter(function(per){return per.status==='0';}).length;");
+        h.push("var specialList=squad.filter(function(per){return per.status!=='0';});");
+        h.push("var cells=sorted.map(function(per){return '<div class=\"person-cell status-'+per.status+'\" onclick=\"showSquadPage('+p+','+s+')\"><div class=\"name\">'+per.name+'</div></div>';}).join('');");
+        h.push("var specialHtml=specialList.length>0?'<div class=\"special-list\">'+specialList.map(function(per){return '<div class=\"special-item\"><span class=\"name\">'+per.name+'</span><span class=\"status\">'+statusNames[per.status]+'</span></div>';}).join('')+'</div>':'';");
+        h.push("detail.innerHTML+='<div class=\"platoon-squad-card\"><h3>'+pi.name+s+'班 ('+squad.length+'人 正常'+normal+')</h3><div class=\"platoon-squad-grid\">'+cells+'</div>'+specialHtml+'</div>';");
+        h.push('}}');
+
+        // renderSquadPage
+        h.push('function renderSquadPage(){');
+        h.push('var p=currentPlatoon,s=currentSquad,pi=platoonStructure[p],sd=mockData[p][s];');
+        h.push("document.getElementById('squadTitle').textContent=pi.name+s+'班';");
+        h.push("document.getElementById('squadBreadcrumbPlatoon').textContent=pi.name;");
+        h.push("document.getElementById('squadBreadcrumb').textContent=s+'班';");
+        h.push("document.getElementById('squadCourseTitle').textContent='课程信息';");
+        h.push("document.getElementById('squadCourseDetails').textContent='08:00-11:30';");
+        h.push("document.getElementById('squadCourseLocation').textContent='待定';");
+        h.push('var sc={0:0,1:0,2:0,3:0,4:0,5:0};sd.forEach(function(per){sc[per.status]++;});');
+        h.push('var sorted=sortPersons(sd);');
+        h.push("var cells=sorted.map(function(per){return '<div class=\"person-cell status-'+per.status+'\"><div class=\"name\">'+per.name+'</div><div class=\"status-text\">'+statusNames[per.status]+'</div></div>';}).join('');");
+        h.push("document.getElementById('squadDetail').innerHTML='<h3>'+pi.name+s+'班 ('+sd.length+'人 正常'+sc[0]+' 特殊'+(sd.length-sc[0])+')</h3><div class=\"squad-grid-2x6\">'+cells+'</div>';");
+        h.push('}');
+
+        // openModal
+        h.push('function openModal(type){');
+        h.push('var modal=document.getElementById("modalOverlay"),title=document.getElementById("modalTitle"),content=document.getElementById("modalContent");');
+        h.push('modal.classList.add("active");');
+        h.push("if(type==='search'){title.textContent='查询人员';content.innerHTML='<div class=\"form-group\"><label>输入姓名</label><input type=\"text\" id=\"searchName\" placeholder=\"请输入姓名\"></div><button class=\"btn\" onclick=\"searchPerson()\">查询</button><div id=\"searchResults\"></div>';}");
+        h.push("else if(type==='duty'){title.textContent='发布公差';content.innerHTML='<div class=\"form-group\"><label>选择人员</label><select id=\"dutyPerson\"></select></div><div class=\"form-group\"><label>公差内容</label><input type=\"text\" id=\"dutyContent\" placeholder=\"请输入公差内容\"></div><div class=\"form-group\"><label>时间</label><input type=\"datetime-local\" id=\"dutyTime\"></div><button class=\"btn\" onclick=\"publishDuty()\">发布</button>';loadPersonSelect();}");
+        h.push("else if(type==='report'){title.textContent='报人';content.innerHTML='<div class=\"form-group\"><label>选择人员</label><select id=\"reportPerson\"></select></div><div class=\"form-group\"><label>状态</label><select id=\"reportStatus\"><option value=\"0\">正常/训练/休息</option><option value=\"1\">俱乐部/竞赛</option><option value=\"2\">公差勤务/办公</option><option value=\"3\">病号/外出/家属来/请假</option><option value=\"4\">岗哨</option><option value=\"5\">其他</option></select></div><div class=\"form-group\"><label>备注</label><input type=\"text\" id=\"reportRemark\" placeholder=\"可选备注\"></div><button class=\"btn\" style=\"background:#22c55e\" onclick=\"reportPerson()\">提交</button>';loadPersonSelect();}");
+        h.push("else if(type==='guard'){title.textContent='排岗';content.innerHTML='<div class=\"form-group\"><label>选择人员</label><select id=\"guardPerson\"></select></div><div class=\"form-group\"><label>岗哨位置</label><input type=\"text\" id=\"guardLocation\" placeholder=\"请输入岗哨位置\"></div><div class=\"form-group\"><label>时间</label><input type=\"datetime-local\" id=\"guardTime\"></div><button class=\"btn\" style=\"background:#f59e0b\" onclick=\"assignGuard()\">安排</button>';loadPersonSelect();}");
+        h.push("else if(type==='emergency'){title.textContent='紧急命令';content.innerHTML='<div class=\"form-group\"><label>命令内容</label><textarea id=\"emergencyContent\" placeholder=\"请输入紧急命令内容\"></textarea></div><div class=\"form-group\"><label>接收范围</label><select id=\"emergencyScope\"><option value=\"all\">全队</option><option value=\"platoon\">指定排</option><option value=\"squad\">指定班</option></select></div><button class=\"btn\" style=\"background:#ef4444\" onclick=\"sendEmergency()\">发送</button>';}");
+        h.push('}');
+
+        h.push('function closeModal(){document.getElementById("modalOverlay").classList.remove("active");}');
+
+        h.push('function loadPersonSelect(){');
+        h.push("var ids=['dutyPerson','reportPerson','guardPerson'];");
+        h.push('for(var k=0;k<ids.length;k++){');
+        h.push('var select=document.getElementById(ids[k]);if(!select)continue;');
+        h.push("var opts='<option value=\"\">请选择</option>';");
+        h.push('for(var p=1;p<=' + platoonCount + ';p++)for(var s=1;s<=platoonStructure[p].squads;s++)mockData[p][s].forEach(function(per){opts+=\'<option value="\'+p+\'-\'+s+\'-\'+per.id+\'">\'+platoonStructure[p].name+s+\'班 - \'+per.name+\'</option>\';});');
+        h.push('select.innerHTML=opts;}}');
+
+        h.push('function searchPerson(){');
+        h.push('var name=document.getElementById("searchName").value;if(!name)return;');
+        h.push('var results=[];');
+        h.push('for(var p=1;p<=' + platoonCount + ';p++)for(var s=1;s<=platoonStructure[p].squads;s++)mockData[p][s].forEach(function(per){if(per.name.indexOf(name)>=0)results.push({name:per.name,status:per.status,p:p,s:s,pname:platoonStructure[p].name});});');
+        h.push('var div=document.getElementById("searchResults");');
+        h.push("if(results.length===0){div.innerHTML='<p style=\"margin-top:10px;color:#6b7280;\">未找到</p>';}");
+        h.push("else{div.innerHTML=results.map(function(r){return '<div style=\"padding:8px;background:var(--bg-light);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;\"><div><span style=\"font-weight:600;\">'+r.name+'</span> <span style=\"color:#6b7280;font-size:0.85em;\">'+r.pname+r.s+'班</span></div><span style=\"padding:2px 8px;border-radius:10px;color:white;font-size:0.8em;background:var(--status-'+r.status+')\">'+statusNames[r.status]+'</span></div>';}).join('');}}");
+
+        h.push("function publishDuty(){var pv=document.getElementById('dutyPerson').value,c=document.getElementById('dutyContent').value;if(!pv||!c){alert('请填写完整');return;}var parts=pv.split('-').map(Number);var per=mockData[parts[0]][parts[1]].find(function(x){return x.id===parts[2];});if(per)per.status='2';alert('已发布');closeModal();refreshCurrentView();}");
+        h.push("function reportPerson(){var pv=document.getElementById('reportPerson').value,st=document.getElementById('reportStatus').value,r=document.getElementById('reportRemark').value;if(!pv){alert('请选择人员');return;}var parts=pv.split('-').map(Number);var per=mockData[parts[0]][parts[1]].find(function(x){return x.id===parts[2];});if(per){per.status=st;per.remark=r;}alert('已报备');closeModal();refreshCurrentView();}");
+        h.push("function assignGuard(){var pv=document.getElementById('guardPerson').value,l=document.getElementById('guardLocation').value;if(!pv||!l){alert('请填写完整');return;}var parts=pv.split('-').map(Number);var per=mockData[parts[0]][parts[1]].find(function(x){return x.id===parts[2];});if(per)per.status='4';alert('已安排');closeModal();refreshCurrentView();}");
+        h.push("function sendEmergency(){var c=document.getElementById('emergencyContent').value;if(!c){alert('请输入内容');return;}alert('已发送');closeModal();}");
+        h.push("function refreshCurrentView(){if(currentView==='company')renderCompanyPage();else if(currentView==='platoon')renderPlatoonPage();else renderSquadPage();}");
+
+        h.push("document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});");
+        h.push("renderCompanyPage();");
+        h.push('<\/script>');
+        h.push('</body></html>');
+
+        var fullHtml = h.join('\n');
+        var blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = '在线表.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    renderProgress();
+})();
+</script>
+</body>
+</html>
