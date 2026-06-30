@@ -3,558 +3,352 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>人员在线情况查询系统</title>
+    <title>连级人员情况</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="shared.js"></script>
     <style>
-        :root {
-            --status-0: #22c55e;
-            --status-1: #eab308;
-            --status-2: #3b82f6;
-            --status-3: #ef4444;
-            --status-4: #ff8c00;
-            --status-5: #581c87;
-            --bg-dark: #1f2937;
-            --bg-light: #f3f4f6;
-            --primary: #3b82f6;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg-light); height: 100vh; overflow: hidden; font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; font-size: 14px; }
-        .page { display: none; height: 100vh; }
-        .page.active { display: flex; flex-direction: column; }
-
-        .header { background: white; padding: 8px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .header h1 { color: var(--bg-dark); font-size: 1.1em; }
-        .user-info { display: flex; align-items: center; gap: 10px; }
-        .position-badge { padding: 4px 10px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.8em; }
-        .logout-btn { padding: 4px 10px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8em; }
-
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: var(--bg-dark); font-size: 0.9em; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
-        .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; }
-        .btn:hover { background: #2563eb; }
-
-        .content { flex: 1; padding: 8px; overflow: hidden; display: flex; flex-direction: column; }
-
-        .legend { background: white; border-radius: 6px; padding: 5px 10px; margin-bottom: 6px; display: flex; gap: 10px; justify-content: center; flex-shrink: 0; font-size: 0.75em; flex-wrap: wrap; }
-        .legend-item { display: flex; align-items: center; gap: 3px; }
-        .legend-color { width: 12px; height: 12px; border-radius: 3px; }
-        .legend-color.status-0 { background: var(--status-0); }
-        .legend-color.status-1 { background: var(--status-1); }
-        .legend-color.status-2 { background: var(--status-2); }
-        .legend-color.status-3 { background: var(--status-3); }
-        .legend-color.status-4 { background: var(--status-4); }
-        .legend-color.status-5 { background: var(--status-5); }
-
-        /* ===== 连级页面布局 ===== */
-        .platoon-header-row { display: flex; gap: 6px; margin-bottom: 6px; flex-shrink: 0; }
-        .platoon-header-pill { flex: 1; padding: 6px 4px; background: var(--bg-dark); color: white; border: none; border-radius: 20px; font-size: 0.85em; font-weight: 600; text-align: center; cursor: pointer; transition: opacity 0.15s; text-decoration: none; display: block; }
-        .platoon-header-pill:hover, .platoon-header-pill:active { opacity: 0.7; }
-
-        .person-grid-area { flex: 1; display: grid; gap: 6px; min-height: 0; }
-        .person-grid-area.grid-1 { grid-template-columns: repeat(1, 1fr); }
-        .person-grid-area.grid-2 { grid-template-columns: repeat(2, 1fr); }
-        .person-grid-area.grid-3 { grid-template-columns: repeat(3, 1fr); }
-        .person-grid-area.grid-4 { grid-template-columns: repeat(4, 1fr); }
-        .person-grid-area.grid-5 { grid-template-columns: repeat(5, 1fr); }
-
-        .person-col { display: flex; flex-direction: column; background: white; border-radius: 8px; overflow: hidden; min-height: 0; }
-        .person-col-inner { flex: 1; display: flex; gap: 2px; padding: 3px; min-height: 0; }
-
-        .squad-block { flex: 1; background: #f9fafb; border-radius: 4px; overflow: hidden; min-height: 0; }
-        .squad-person-grid { width: 100%; height: 100%; display: grid; gap: 2px; padding: 3px; }
-
-        .person-cell { border-radius: 2px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 600; }
-        .person-cell .name { font-size: 0.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: center; line-height: 1.1; }
-        .person-cell .status-text { font-size: 0.4em; opacity: 0.8; }
-        .person-cell.status-0 { background: var(--status-0); color: white; }
-        .person-cell.status-1 { background: var(--status-1); color: #1f2937; }
-        .person-cell.status-2 { background: var(--status-2); color: white; }
-        .person-cell.status-3 { background: var(--status-3); color: white; }
-        .person-cell.status-4 { background: var(--status-4); color: #1f2937; }
-        .person-cell.status-5 { background: var(--status-5); color: white; }
-
-        .situation-btn-row { display: flex; gap: 6px; margin-top: 10px; flex-shrink: 0; }
-        .situation-btn { flex: 1; padding: 14px 10px; background: white; color: var(--bg-dark); border: 2px solid var(--bg-dark); border-radius: 20px; font-size: 0.95em; font-weight: 600; text-align: center; cursor: pointer; line-height: 1.6; transition: background 0.15s, color 0.15s; text-decoration: none; display: block; }
-        .situation-btn:hover, .situation-btn:active { background: var(--bg-dark); color: white; }
-
-        .company-summary { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 16px 20px; border-radius: 20px; margin-top: 12px; flex-shrink: 0; text-align: center; font-size: 1.1em; line-height: 1.6; }
-
-        .function-bar { display: flex; gap: 8px; margin-top: 12px; flex-shrink: 0; }
-        .function-btn { flex: 1; padding: 16px 10px; border: none; border-radius: 20px; color: white; cursor: pointer; font-size: 1.1em; font-weight: 600; transition: opacity 0.15s; }
-        .function-btn:active { opacity: 0.7; }
-        .function-btn.btn-search { background: #8b5cf6; }
-        .function-btn.btn-report { background: #10b981; }
-        .function-btn.btn-duty { background: #06b6d4; }
-        .function-btn.btn-guard { background: #f97316; }
-        .function-btn.btn-emergency { background: #ef4444; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-overlay.active { display: flex; }
-        .modal { background: white; border-radius: 10px; padding: 20px; max-width: 400px; width: 90%; max-height: 70vh; overflow-y: auto; }
-        .modal h2 { margin-bottom: 15px; color: var(--bg-dark); font-size: 1.1em; }
-        .modal-close { float: right; background: none; border: none; font-size: 1.3em; cursor: pointer; color: #6b7280; }
-        .form-group textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; resize: vertical; min-height: 80px; font-family: inherit; }
-
-        /* ===== 移动端适配 ===== */
-        @media (max-width: 600px) {
-            body { font-size: 12px; }
-            .header { padding: 6px 10px; }
-            .header h1 { font-size: 0.95em; }
-            .position-badge { font-size: 0.7em; padding: 3px 8px; }
-            .logout-btn { font-size: 0.7em; padding: 3px 8px; }
-            .content { padding: 6px; overflow: hidden; }
-            .legend { font-size: 0.65em; gap: 6px; padding: 4px 8px; }
-            .legend-color { width: 10px; height: 10px; }
-
-            .platoon-header-pill { font-size: 0.75em; padding: 5px 2px; border-radius: 16px; }
-            .person-cell { min-height: 12px; border-radius: 2px; }
-            .person-cell .name { font-size: 0.45em; }
-            .person-cell .status-text { font-size: 0.35em; }
-            .person-col-inner { gap: 1px; padding: 1px; }
-            .squad-person-grid { gap: 1px; padding: 2px; }
-
-            .situation-btn { font-size: 0.9em; padding: 10px 6px; border-radius: 16px; line-height: 1.5; }
-            .company-summary { border-radius: 16px; padding: 12px 14px; font-size: 1.05em; }
-
-            .function-btn { font-size: 1em; padding: 13px 8px; border-radius: 16px; }
-
-            .modal { padding: 15px; }
-            .modal h2 { font-size: 1em; }
-        }
-
-        @media (max-width: 380px) {
-            .platoon-header-pill { font-size: 0.68em; }
-            .person-cell .name { font-size: 0.45em; }
-            .function-btn { font-size: 0.62em; padding: 6px 3px; }
-            .situation-btn { font-size: 0.62em; }
-            .squad-person-grid { gap: 1px; padding: 1px; }
+        :root { --status-0:#22c55e; --status-1:#eab308; --status-2:#3b82f6; --status-3:#ef4444; --status-4:#ff8c00; --status-5:#581c87; --bg-dark:#1f2937; --bg-light:#f3f4f6; --primary:#3b82f6; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg-light); height:100vh; overflow:hidden; font-family:'Microsoft YaHei','Segoe UI',sans-serif; font-size:14px; }
+        .page { display:flex; flex-direction:column; height:100vh; }
+        .header { background:white; padding:8px 16px; box-shadow:0 2px 4px rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+        .header h1 { color:var(--bg-dark); font-size:1.1em; }
+        .user-info { display:flex; align-items:center; gap:10px; }
+        .position-badge { padding:4px 10px; background:var(--primary); color:white; border-radius:12px; font-size:0.8em; }
+        .logout-btn { padding:4px 10px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.8em; }
+        .content { flex:1; padding:8px; overflow:hidden; display:flex; flex-direction:column; }
+        .legend { background:white; border-radius:6px; padding:5px 10px; margin-bottom:6px; display:flex; gap:10px; justify-content:center; flex-shrink:0; font-size:0.75em; flex-wrap:wrap; }
+        .legend-item { display:flex; align-items:center; gap:3px; }
+        .legend-color { width:12px; height:12px; border-radius:3px; }
+        .platoon-header-row { display:flex; gap:6px; margin-bottom:6px; flex-shrink:0; }
+        .platoon-header-pill { flex:1; padding:6px 4px; background:var(--bg-dark); color:white; border:none; border-radius:20px; font-size:0.85em; font-weight:600; text-align:center; cursor:pointer; text-decoration:none; display:block; transition:opacity 0.15s; }
+        .platoon-header-pill:active { opacity:0.7; }
+        .person-grid-area { flex:1; display:grid; gap:6px; min-height:0; }
+        .person-grid-area.grid-1 { grid-template-columns:repeat(1,1fr); }
+        .person-grid-area.grid-2 { grid-template-columns:repeat(2,1fr); }
+        .person-grid-area.grid-3 { grid-template-columns:repeat(3,1fr); }
+        .person-grid-area.grid-4 { grid-template-columns:repeat(4,1fr); }
+        .person-grid-area.grid-5 { grid-template-columns:repeat(5,1fr); }
+        .person-col { display:flex; flex-direction:column; background:white; border-radius:8px; overflow:hidden; min-height:0; }
+        .person-col-inner { flex:1; display:flex; gap:2px; padding:3px; min-height:0; }
+        .squad-block { flex:1; background:#f9fafb; border-radius:4px; overflow:hidden; min-height:0; }
+        .squad-person-grid { width:100%; height:100%; display:grid; gap:2px; padding:3px; }
+        .person-cell { border-radius:2px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-weight:600; cursor:pointer; transition:transform 0.1s, opacity 0.15s; color:white; }
+        .person-cell:active { transform:scale(0.95); }
+        .person-cell .cell-name { font-size:0.6em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; text-align:center; }
+        .person-cell.status-0 { background:var(--status-0); }
+        .person-cell.status-1 { background:var(--status-1); }
+        .person-cell.status-2 { background:var(--status-2); }
+        .person-cell.status-3 { background:var(--status-3); }
+        .person-cell.status-4 { background:var(--status-4); }
+        .person-cell.status-5 { background:var(--status-5); }
+        .situation-btn-row { display:flex; gap:6px; margin-top:8px; flex-shrink:0; }
+        .situation-btn { flex:1; padding:8px 6px; background:white; color:var(--bg-dark); border:2px solid var(--bg-dark); border-radius:20px; font-size:0.75em; font-weight:600; text-align:center; cursor:pointer; line-height:1.5; text-decoration:none; display:block; transition:background 0.15s, color 0.15s; }
+        .situation-btn:active { background:var(--bg-dark); color:white; }
+        .company-summary { background:linear-gradient(135deg,#1e40af,#3b82f6); color:white; padding:10px 16px; border-radius:20px; margin-top:10px; flex-shrink:0; text-align:center; font-size:0.9em; line-height:1.6; }
+        .function-bar { display:flex; gap:8px; margin-top:12px; flex-shrink:0; }
+        .function-btn { flex:1; padding:14px 10px; border:none; border-radius:20px; color:white; cursor:pointer; font-size:1em; font-weight:600; transition:opacity 0.15s; }
+        .function-btn:active { opacity:0.7; }
+        .function-btn.btn-search { background:#8b5cf6; }
+        .function-btn.btn-emergency { background:#ef4444; }
+        .function-btn.btn-duty { background:#06b6d4; }
+        .function-btn.btn-report { background:#10b981; }
+        .function-btn.btn-guard { background:#f59e0b; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000; }
+        .modal-overlay.active { display:flex; }
+        .modal { background:white; border-radius:10px; padding:20px; max-width:400px; width:90%; max-height:70vh; overflow-y:auto; }
+        .modal h2 { margin-bottom:15px; color:var(--bg-dark); font-size:1.1em; }
+        .modal-close { float:right; background:none; border:none; font-size:1.3em; cursor:pointer; color:#6b7280; }
+        .form-group { margin-bottom:15px; }
+        .form-group label { display:block; margin-bottom:5px; font-weight:600; color:var(--bg-dark); font-size:0.9em; }
+        .form-group input, .form-group select, .form-group textarea { width:100%; padding:10px; border:2px solid #e5e7eb; border-radius:8px; font-size:0.9em; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+        .form-group textarea { resize:vertical; min-height:80px; font-family:inherit; }
+        .btn { width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:1em; cursor:pointer; font-weight:600; }
+        .btn:hover { background:#2563eb; }
+        @media (max-width:600px) {
+            body { font-size:12px; }
+            .header { padding:6px 10px; }
+            .header h1 { font-size:0.95em; }
+            .position-badge { font-size:0.7em; padding:3px 8px; }
+            .logout-btn { font-size:0.7em; padding:3px 8px; }
+            .content { padding:6px; overflow:hidden; }
+            .legend { font-size:0.65em; gap:6px; padding:4px 8px; }
+            .legend-color { width:10px; height:10px; }
+            .platoon-header-pill { font-size:0.75em; padding:5px 2px; border-radius:16px; }
+            .person-cell .cell-name { font-size:0.45em; }
+            .squad-person-grid { gap:1px; padding:2px; }
+            .function-btn { font-size:1em; padding:13px 8px; border-radius:16px; }
+            .company-summary { border-radius:16px; padding:8px 12px; font-size:0.85em; }
+            .situation-btn { font-size:0.65em; padding:6px 3px; border-radius:14px; line-height:1.3; }
+            .modal { padding:15px; }
         }
     </style>
-    <script src="api.js"></script>
 </head>
 <body>
-
-<div id="companyPage" class="page active">
+<div id="app" class="page">
     <div class="header">
-        <h1>39队人员情况总览</h1>
+        <h1>连级人员情况</h1>
         <div class="user-info">
-            <span class="position-badge" id="companyPosition"></span>
-            <button class="logout-btn" onclick="handleLogout()">退出</button>
+            <span class="position-badge">{{ ROLE_NAMES[user.role] || '未知' }}</span>
+            <button class="logout-btn" @click="doLogout">退出</button>
         </div>
     </div>
     <div class="content">
         <div class="legend">
-            <div class="legend-item"><div class="legend-color status-0"></div><span>正常</span></div>
-            <div class="legend-item"><div class="legend-color status-1"></div><span>俱乐部/竞赛</span></div>
-            <div class="legend-item"><div class="legend-color status-2"></div><span>公差/勤务</span></div>
-            <div class="legend-item"><div class="legend-color status-3"></div><span>病号/请假/外出</span></div>
-            <div class="legend-item"><div class="legend-color status-4"></div><span>岗哨</span></div>
-            <div class="legend-item"><div class="legend-color status-5"></div><span>其他</span></div>
+            <div class="legend-item" v-for="(name, code) in STATUS_NAMES" :key="code">
+                <div class="legend-color" :style="{background: STATUS_COLORS[code]}"></div>
+                <span>{{ name }}</span>
+            </div>
         </div>
-        <!-- 排标题行 -->
-        <div class="platoon-header-row" id="platoonHeaderRow"></div>
-        <!-- 人员格子区域 -->
-        <div class="person-grid-area" id="personGridArea"></div>
-        <!-- 情况按钮行 -->
-        <div class="situation-btn-row" id="situationBtnRow"></div>
-        <!-- 情况汇总 -->
-        <div class="company-summary" id="companySummary"></div>
-        <!-- 功能按钮 -->
-        <div class="function-bar" id="functionBar"></div>
+        <div class="platoon-header-row">
+            <a v-for="p in scopePlatoons" :key="p" class="platoon-header-pill" :href="'platoon.html?p='+p">
+                {{ PLATOON_NAMES[p] || p+'排' }}
+            </a>
+        </div>
+        <div class="person-grid-area" :class="'grid-'+scopePlatoons.length">
+            <div v-for="p in scopePlatoons" :key="p" class="person-col">
+                <div class="person-col-inner">
+                    <div v-for="sq in getSortedSquads(p)" :key="sq.id" class="squad-block" :data-count="sq.users.length">
+                        <div class="squad-person-grid" :style="squadGridStyle(sq.users.length)">
+                            <div v-for="per in sortPersons(sq.users)" :key="per.id"
+                                 class="person-cell" :class="'status-'+(per.status||0)"
+                                 @mousedown="startLongPress(p, sq.id, per.name, per.id)"
+                                 @touchstart="startLongPress(p, sq.id, per.name, per.id)"
+                                 @mouseup="cancelLongPress" @mouseleave="cancelLongPress"
+                                 @touchend="cancelLongPress">
+                                <span class="cell-name">{{ per.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="situation-btn-row">
+            <a v-for="p in scopePlatoons" :key="p" class="situation-btn" :href="'platoon.html?p='+p">
+                {{ platoonSummary(p) }}
+            </a>
+        </div>
+        <div class="company-summary" v-html="companySummaryHtml"></div>
+        <div class="function-bar">
+            <button v-if="user.role===0" class="function-btn btn-search" @click="openModal('search')">查人</button>
+            <button v-if="user.role===0" class="function-btn btn-emergency" @click="openModal('emergency')">紧急命令</button>
+            <button v-if="user.role===1||effectiveRole===1" class="function-btn btn-search" @click="openModal('search')">查人</button>
+            <button v-if="user.role===1||effectiveRole===1" class="function-btn btn-duty" @click="openModal('duty')">发布公差</button>
+            <button v-if="user.role===1||effectiveRole===1" class="function-btn btn-report" @click="openModal('report')">报人</button>
+            <button v-if="user.role===1||effectiveRole===1" class="function-btn btn-guard" @click="openModal('guard')">排岗</button>
+        </div>
     </div>
-</div>
 
-<div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
-        <button class="modal-close" onclick="closeModal()">&times;</button>
-        <h2 id="modalTitle">功能</h2>
-        <div id="modalContent"></div>
+    <!-- Modal -->
+    <div class="modal-overlay" :class="{active: modalType}" @click.self="closeModal">
+        <div class="modal">
+            <button class="modal-close" @click="closeModal">&times;</button>
+            <h2>{{ modalTitle }}</h2>
+            <div v-if="modalType==='search'">
+                <div style="text-align:center;font-size:1.1em;font-weight:600;margin-bottom:12px;">将命令向下级发布</div>
+                <div class="form-group"><label>备注</label><input v-model="searchRemark" placeholder="请输入备注"></div>
+                <button class="btn" style="background:#3b82f6" @click="submitSearch">确认</button>
+            </div>
+            <div v-if="modalType==='emergency'">
+                <div class="form-group"><label>标题</label><input v-model="emergencyTitle" placeholder="命令标题"></div>
+                <div class="form-group"><label>内容</label><textarea v-model="emergencyContent" placeholder="请输入命令内容"></textarea></div>
+                <button class="btn" style="background:#ef4444" @click="sendEmergency">发送</button>
+            </div>
+            <div v-if="modalType==='duty'">
+                <div v-for="(t,i) in dutyTypes" :key="i" class="form-group">
+                    <label>类型{{i+1}}</label><input v-model="dutyTypes[i]" placeholder="请输入类型" maxlength="10">
+                </div>
+                <div style="text-align:center;margin:6px 0;"><button class="btn" style="background:#e5e7eb;color:#374151;padding:6px 16px;font-size:0.9em;" @click="dutyTypes.push('')">+ 增加类型</button></div>
+                <div class="form-group"><label>备注</label><input v-model="dutyRemark" placeholder="请输入备注" maxlength="20"></div>
+                <button class="btn" style="background:#3b82f6" @click="publishDuty">发布</button>
+            </div>
+            <div v-if="modalType==='report'">
+                <div class="form-group"><label>选择人员</label>
+                    <select v-model="reportPersonId"><option value="">请选择</option><option v-for="per in allPersonList" :key="per.id" :value="per.id">{{ per.platoon }}排{{ per.squad }}班 - {{ per.name }}</option></select>
+                </div>
+                <div class="form-group"><label>状态</label>
+                    <select v-model.number="reportStatus">
+                        <option :value="0">正常</option><option :value="1">俱乐部/竞赛</option><option :value="2">公差/勤务</option>
+                        <option :value="3">病号/请假/外出</option><option :value="4">岗哨</option><option :value="5">其他</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>备注</label><input v-model="reportRemark" placeholder="可选备注"></div>
+                <button class="btn" style="background:#22c55e" @click="reportPerson">提交</button>
+            </div>
+            <div v-if="modalType==='guard'">
+                <div style="display:flex;gap:10px;">
+                    <a href="guard_day.html" class="btn" style="background:#f59e0b;text-align:center;text-decoration:none;flex:1;">白岗排岗</a>
+                    <a href="guard_night.html" class="btn" style="background:#6366f1;text-align:center;text-decoration:none;flex:1;">夜岗排岗</a>
+                </div>
+            </div>
+            <div v-if="modalType==='changeStatus'">
+                <div style="text-align:center;font-size:1.1em;font-weight:600;margin-bottom:12px;">修改 {{ changeName }} 的状态</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button v-for="(name,code) in STATUS_NAMES" :key="code" class="btn" :style="{background:STATUS_COLORS[code],color:code===1||code===4?'#1f2937':'white'}" @click="changePersonStatus(changePersonId, parseInt(code))">
+                        {{ code }}. {{ name }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-// 检查登录状态
-if (!checkLogin()) { /* 已跳转 */ }
+const { createApp } = Vue;
 
-var statusNames = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差/勤务', 3: '病号/请假/外出', 4: '岗哨', 5: '其他' };
-var platoonNames = { 1: '一排', 2: '二排', 3: '三排', 4: '四排' };
-
-// 缓存数据
-var personnelData = null; // 嵌套格式：{ "1": { name: "一排", squads: { "1": [...], "2": [...] } } }
-var usersByPlatoonSquad = {}; // { "1-1": [...users], "1-2": [...] }
-
-function handleLogout() { logout(); }
-
-function sortPersons(persons) { return persons.slice().sort(function(a, b) { return (a.status || 0) - (b.status || 0); }); }
-
-// 从后端加载数据
-async function loadData() {
-    try {
-        // 获取人员列表（嵌套格式）
-        personnelData = await getPersonnel();
-
-        // 转换为 usersByPlatoonSquad 格式
-        usersByPlatoonSquad = {};
-        for (var p in personnelData) {
-            var platoonInfo = personnelData[p];
-            for (var s in platoonInfo.squads) {
-                var key = p + '-' + s;
-                usersByPlatoonSquad[key] = platoonInfo.squads[s];
+createApp({
+    data() {
+        return {
+            user: getCurrentUser(),
+            personnelData: null,
+            modalType: '',
+            modalTitle: '',
+            searchRemark: '',
+            emergencyTitle: '',
+            emergencyContent: '',
+            dutyTypes: [''],
+            dutyRemark: '',
+            reportPersonId: '',
+            reportStatus: 0,
+            reportRemark: '',
+            changePersonId: null,
+            changeName: '',
+            longPressTimer: null
+        };
+    },
+    computed: {
+        effectiveRole() { return getEffectiveRole(this.user.role); },
+        scopePlatoons() {
+            if (!this.personnelData) return [];
+            var ps = Object.keys(this.personnelData).map(Number).sort((a,b)=>a-b);
+            if (this.effectiveRole === 2) ps = [this.user.platoon];
+            return ps;
+        },
+        allPersonList() {
+            var list = [];
+            if (!this.personnelData) return list;
+            for (var p in this.personnelData) {
+                for (var s in this.personnelData[p].squads) {
+                    this.personnelData[p].squads[s].forEach(u => list.push({...u, platoon: parseInt(p), squad: parseInt(s)}));
+                }
             }
-        }
-
-        renderCompanyPage();
-    } catch (e) {
-        alert('加载数据失败：' + e.message);
-    }
-}
-
-function renderCompanyPage() {
-    if (!personnelData) return;
-
-    // 权限和范围控制
-    var user = getCurrentUser();
-    var role = user.role;
-    var onDuty = parseInt(localStorage.getItem('onDuty') || '0');
-    var userPlatoon = user.platoon;
-
-    // 值班权限降级
-    var effectiveRole = role;
-    if (onDuty === 1 && role === 3) effectiveRole = 2;
-    if (onDuty === 1 && role === 2) effectiveRole = 1;
-
-    // 确定可见范围
-    var scopePlatoons = [];
-    for (var p in personnelData) {
-        scopePlatoons.push(parseInt(p));
-    }
-    scopePlatoons.sort(function(a, b) { return a - b; });
-    
-    if (effectiveRole === 2) {
-        scopePlatoons = [userPlatoon];
-    }
-
-    // 统计总人数
-    var total = 0, present = 0, statusCounts = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0};
-    scopePlatoons.forEach(function(p) {
-        var platoonInfo = personnelData[p];
-        if (!platoonInfo) return;
-        for (var s in platoonInfo.squads) {
-            var squadUsers = platoonInfo.squads[s];
-            squadUsers.forEach(function(per) {
-                total++;
-                var sc = per.status || 0;
-                statusCounts[sc]++;
-                if (sc === 0) present++;
+            return list;
+        },
+        companySummaryHtml() {
+            if (!this.personnelData) return '';
+            var total=0, present=0, sc={0:0,1:0,2:0,3:0,4:0,5:0};
+            this.scopePlatoons.forEach(p => {
+                var info = this.personnelData[p];
+                if (!info) return;
+                for (var s in info.squads) {
+                    info.squads[s].forEach(per => {
+                        total++; var code = per.status||0; sc[code]++; if (code===0) present++;
+                    });
+                }
             });
+            var h = '应到<b>'+total+'</b>人，实到<b>'+present+'</b>人，缺<b>'+(total-present)+'</b>人';
+            if (sc[2]>0) h += '，<span style="color:var(--status-2)"><b>'+sc[2]+'</b></span>名公差';
+            if (sc[4]>0) h += '，<span style="color:var(--status-4)"><b>'+sc[4]+'</b></span>名岗哨';
+            if (sc[5]>0) h += '，<span style="color:var(--status-5)"><b>'+sc[5]+'</b></span>名其他';
+            return h;
         }
-    });
-    var missing = total - present;
-
-    // 排标题行
-    var headerRow = document.getElementById('platoonHeaderRow');
-    headerRow.innerHTML = '';
-    scopePlatoons.forEach(function(p) {
-        var pName = platoonNames[p] || (p + '排');
-        var a = document.createElement('a');
-        a.className = 'platoon-header-pill';
-        a.href = 'platoon.html?p=' + p;
-        a.textContent = pName;
-        headerRow.appendChild(a);
-    });
-
-    // 人员格子区域
-    var gridArea = document.getElementById('personGridArea');
-    var colCount = scopePlatoons.length;
-    gridArea.className = 'person-grid-area grid-' + colCount;
-    gridArea.innerHTML = '';
-
-    scopePlatoons.forEach(function(p) {
-        var platoonInfo = personnelData[p];
-        if (!platoonInfo) return;
-        var col = document.createElement('div');
-        col.className = 'person-col';
-        var colInner = document.createElement('div');
-        colInner.className = 'person-col-inner';
-
-        for (var s in platoonInfo.squads) {
-            var squadUsers = platoonInfo.squads[s];
-            var sorted = sortPersons(squadUsers);
-            var cells = sorted.map(function(per) {
-                var sc = per.status || 0;
-                return '<div class="person-cell status-' + sc + '" data-pid="' + per.id + '" data-pp="' + p + '" data-ps="' + per.squad + '" onmousedown="startLongPress(' + p + ',' + per.squad + ',\'' + per.name + '\',' + per.id + ')" ontouchstart="startLongPress(' + p + ',' + per.squad + ',\'' + per.name + '\',' + per.id + ')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchend="cancelLongPress()"></div>';
-            }).join('');
-            colInner.innerHTML += '<div class="squad-block" data-count="' + squadUsers.length + '"><div class="squad-person-grid">' + cells + '</div></div>';
+    },
+    methods: {
+        sortPersons(arr) { return arr.slice().sort((a,b) => (a.status||0) - (b.status||0)); },
+        getSortedSquads(p) {
+            var info = this.personnelData && this.personnelData[p];
+            if (!info) return [];
+            return Object.keys(info.squads).map(id => ({id: parseInt(id), users: info.squads[id]})).sort((a,b)=>a.id-b.id);
+        },
+        squadGridStyle(count) {
+            return { gridTemplateColumns: 'repeat(1, 1fr)', gridTemplateRows: 'repeat('+count+', 1fr)' };
+        },
+        platoonSummary(p) {
+            var info = this.personnelData && this.personnelData[p];
+            if (!info) return '';
+            var total=0, present=0;
+            for (var s in info.squads) {
+                info.squads[s].forEach(per => { total++; if ((per.status||0)===0) present++; });
+            }
+            return '应到'+total+' 实到'+present+' 缺'+(total-present);
+        },
+        async loadData() {
+            try {
+                this.personnelData = await getPersonnel();
+            } catch (e) { alert('加载数据失败：'+e.message); }
+        },
+        doLogout() { logout(); },
+        startLongPress(p, s, name, id) {
+            var user = this.user;
+            var er = this.effectiveRole;
+            if (user.role > 2 && er > 2) return;
+            this.longPressTimer = setTimeout(() => this.openChangeStatus(id, name), 500);
+        },
+        cancelLongPress() { if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; } },
+        openChangeStatus(id, name) {
+            this.changePersonId = id;
+            this.changeName = name;
+            this.modalType = 'changeStatus';
+            this.modalTitle = '修改状态';
+        },
+        async changePersonStatus(personId, newStatus) {
+            try {
+                await updatePersonStatus(personId, newStatus);
+                alert('已修改 '+this.changeName+' 的状态');
+            } catch (e) { alert('修改失败：'+e.message); }
+            this.closeModal();
+            this.loadData();
+        },
+        openModal(type) {
+            this.modalType = type;
+            if (type==='search') { this.modalTitle='查人'; this.searchRemark=''; }
+            if (type==='emergency') { this.modalTitle='紧急命令'; this.emergencyTitle=''; this.emergencyContent=''; }
+            if (type==='duty') { this.modalTitle='发布公差'; this.dutyTypes=['']; this.dutyRemark=''; }
+            if (type==='report') { this.modalTitle='报人'; this.reportPersonId=''; this.reportStatus=0; this.reportRemark=''; }
+            if (type==='guard') { this.modalTitle='排岗'; }
+        },
+        closeModal() { this.modalType = ''; },
+        async submitSearch() {
+            try {
+                await createCheckCommand(this.user.role+1, this.searchRemark || '请上报人员在位情况');
+                alert('查人命令已发布');
+            } catch (e) { alert('发布失败：'+e.message); }
+            this.closeModal();
+        },
+        async sendEmergency() {
+            if (!this.emergencyContent.trim()) { alert('请输入命令内容'); return; }
+            try {
+                var remark = this.emergencyTitle ? this.emergencyTitle+'：'+this.emergencyContent : this.emergencyContent;
+                await createEmergencyCommand(remark);
+                alert('紧急命令已发送');
+            } catch (e) { alert('发送失败：'+e.message); }
+            this.closeModal();
+        },
+        async publishDuty() {
+            var types = this.dutyTypes.filter(t => t.trim());
+            if (types.length === 0) { alert('请至少填写一个类型'); return; }
+            try {
+                await createDutyCommand(this.user.role+1, types, this.dutyRemark);
+                alert('公差命令已发布');
+            } catch (e) { alert('发布失败：'+e.message); }
+            this.closeModal();
+        },
+        async reportPerson() {
+            if (!this.reportPersonId) { alert('请选择人员'); return; }
+            try {
+                await updatePersonStatus(parseInt(this.reportPersonId), this.reportStatus, this.reportRemark);
+                alert('已报备');
+            } catch (e) { alert('报备失败：'+e.message); }
+            this.closeModal();
+            this.loadData();
         }
-
-        col.appendChild(colInner);
-        gridArea.appendChild(col);
-    });
-
-    // 每个班强制1列
-    requestAnimationFrame(function() {
-        gridArea.querySelectorAll('.squad-block').forEach(function(block) {
-            var grid = block.querySelector('.squad-person-grid');
-            var count = parseInt(block.dataset.count);
-            grid.style.gridTemplateColumns = 'repeat(1, 1fr)';
-            grid.style.gridTemplateRows = 'repeat(' + count + ', 1fr)';
-        });
-    });
-
-    // 情况按钮行
-    var sitRow = document.getElementById('situationBtnRow');
-    sitRow.innerHTML = '';
-    scopePlatoons.forEach(function(p) {
-        var platoonInfo = personnelData[p];
-        if (!platoonInfo) return;
-        var pName = platoonNames[p] || (p + '排');
-        var pTotal = 0, pPresent = 0;
-        for (var s in platoonInfo.squads) {
-            platoonInfo.squads[s].forEach(function(per) {
-                pTotal++;
-                if ((per.status || 0) === 0) pPresent++;
-            });
-        }
-        var pMissing = pTotal - pPresent;
-        var a = document.createElement('a');
-        a.className = 'situation-btn';
-        a.href = 'platoon.html?p=' + p;
-        var btnHtml = '应到' + pTotal + ' 实到' + pPresent + ' 缺' + pMissing;
-        a.innerHTML = btnHtml;
-        sitRow.appendChild(a);
-    });
-
-    // 情况汇总
-    var summaryHtml = '应到<span style="font-weight:700;font-size:1.1em">' + total + '</span>人，' +
-        '实到<span style="font-weight:700;font-size:1.1em">' + present + '</span>人，' +
-        '缺<span style="font-weight:700;font-size:1.1em">' + missing + '</span>人';
-    if (statusCounts[2] > 0) summaryHtml += '，<span style="color:var(--status-2);font-weight:700">' + statusCounts[2] + '</span>名公差';
-    if (statusCounts[4] > 0) summaryHtml += '，<span style="color:var(--status-4);font-weight:700">' + statusCounts[4] + '</span>名岗哨';
-    if (statusCounts[5] > 0) summaryHtml += '，<span style="color:var(--status-5);font-weight:700">' + statusCounts[5] + '</span>名其他';
-    document.getElementById('companySummary').innerHTML = summaryHtml;
-
-    // 权限控制功能按钮
-    var badge = document.getElementById('companyPosition');
-    var roleNames = { 0: '队长', 1: '连干', 2: '排干', 3: '班长', 4: '卫生员', 5: '班员' };
-    badge.textContent = roleNames[role] || '未知';
-
-    var funcBar = document.getElementById('functionBar');
-    funcBar.innerHTML = '';
-    if (role === 0) {
-        funcBar.innerHTML = '<button class="function-btn btn-search" onclick="openModal(\'search\')">查人</button>' +
-            '<button class="function-btn btn-emergency" onclick="openModal(\'emergency\')">紧急命令</button>';
-    } else if (role === 1 || effectiveRole === 1) {
-        funcBar.innerHTML = '<button class="function-btn btn-search" onclick="openModal(\'search\')">查人</button>' +
-            '<button class="function-btn btn-duty" onclick="openModal(\'duty\')">发布公差</button>' +
-            '<button class="function-btn btn-report" onclick="openModal(\'report\')">报人</button>' +
-            '<button class="function-btn btn-guard" onclick="openModal(\'guard\')">排岗</button>';
+    },
+    mounted() {
+        checkLogin();
+        this.loadData();
     }
-}
-
-function openModal(type) {
-    var modal = document.getElementById('modalOverlay');
-    var title = document.getElementById('modalTitle');
-    var content = document.getElementById('modalContent');
-    modal.classList.add('active');
-    switch (type) {
-        case 'search':
-            title.textContent = '查人';
-            content.innerHTML = '<div style="text-align:center;font-size:1.1em;font-weight:600;margin-bottom:12px;">将命令向下级发布</div>' +
-                '<div class="form-group"><label>备注为</label><input type="text" id="searchRemark" placeholder="请输入备注"></div>' +
-                '<div style="display:flex;gap:10px;margin-top:10px;">' +
-                '<button class="btn" style="background:#3b82f6;color:white;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="submitSearch()">确认</button>' +
-                '<button class="btn" style="background:#e5e7eb;color:#374151;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="closeModal()">返回</button>' +
-                '</div>';
-            break;
-        case 'duty':
-            title.textContent = '发布公差';
-            window._dutyTypes = [''];
-            renderDutyForm();
-            break;
-        case 'report':
-            title.textContent = '报人';
-            content.innerHTML = '<div class="form-group"><label>选择人员</label><select id="reportPerson"></select></div>' +
-                '<div class="form-group"><label>状态</label><select id="reportStatus"><option value="0">正常</option><option value="1">俱乐部/竞赛</option><option value="2">公差/勤务</option><option value="3">病号/请假/外出</option><option value="4">岗哨</option><option value="5">其他</option></select></div>' +
-                '<div class="form-group"><label>备注</label><input type="text" id="reportRemark" placeholder="可选备注"></div>' +
-                '<button class="btn" style="background:#22c55e" onclick="reportPerson()">提交</button>';
-            loadPersonSelect();
-            break;
-        case 'guard':
-            title.textContent = '排岗';
-            content.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;">' +
-                '<button class="btn" style="background:#f59e0b;color:white;padding:14px;font-size:1.05em;border-radius:12px;" onclick="window.location.href=\'guard_day.html\'">1. 白岗</button>' +
-                '<button class="btn" style="background:#6366f1;color:white;padding:14px;font-size:1.05em;border-radius:12px;" onclick="window.location.href=\'guard_night.html\'">2. 夜岗</button>' +
-                '</div>';
-            break;
-        case 'emergency':
-            title.textContent = '紧急命令';
-            content.innerHTML = '<div class="form-group"><label>命令标题</label><input type="text" id="emergencyTitle" placeholder="请输入命令标题"></div>' +
-                '<div class="form-group"><label>命令内容</label><textarea id="emergencyContent" placeholder="请输入紧急命令内容"></textarea></div>' +
-                '<button class="btn" style="background:#ef4444" onclick="sendEmergency()">发送</button>';
-            break;
-    }
-}
-
-function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
-
-var longPressTimer = null;
-function startLongPress(platoon, squad, name, personId) {
-    longPressTimer = setTimeout(function() { onPersonCellClick(platoon, squad, name, personId); }, 500);
-}
-function cancelLongPress() {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-}
-
-function onPersonCellClick(platoon, squad, name, personId) {
-    var user = getCurrentUser();
-    var r = user.role;
-    var od = parseInt(localStorage.getItem('onDuty') || '0');
-    var er = r;
-    if (od === 1 && r === 3) er = 2;
-    if (od === 1 && r === 2) er = 1;
-    if (r !== 0 && er !== 1) return;
-    var modal = document.getElementById('modalOverlay');
-    var title = document.getElementById('modalTitle');
-    var content = document.getElementById('modalContent');
-    modal.classList.add('active');
-    title.textContent = '修改状态';
-    content.innerHTML = '<div style="text-align:center;font-size:1.1em;font-weight:600;margin-bottom:12px;">是否修改 ' + name + ' 的状态？</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<button class="btn" style="background:#22c55e;color:white;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',0,\'' + name + '\')">0. 正常</button>' +
-        '<button class="btn" style="background:#eab308;color:#1f2937;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',1,\'' + name + '\')">1. 俱乐部/竞赛</button>' +
-        '<button class="btn" style="background:#3b82f6;color:white;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',2,\'' + name + '\')">2. 公差/勤务</button>' +
-        '<button class="btn" style="background:#ef4444;color:white;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',3,\'' + name + '\')">3. 病号/请假/外出</button>' +
-        '<button class="btn" style="background:#ff8c00;color:#1f2937;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',4,\'' + name + '\')">4. 岗哨</button>' +
-        '<button class="btn" style="background:#581c87;color:white;padding:12px;font-size:1em;border-radius:12px;" onclick="changePersonStatus(' + personId + ',5,\'' + name + '\')">5. 其他</button>' +
-        '</div>' +
-        '<button class="btn" style="background:#e5e7eb;color:#374151;margin-top:10px;" onclick="closeModal()">返回</button>';
-}
-
-async function changePersonStatus(personId, newStatus, name) {
-    try {
-        await updatePersonStatus(personId, newStatus);
-        alert('已修改 ' + name + ' 的状态');
-    } catch (e) {
-        alert('修改失败：' + e.message);
-    }
-    closeModal();
-    loadData();
-}
-
-function loadPersonSelect() {
-    var select = document.getElementById('reportPerson');
-    if (!select) return;
-    var opts = '<option value="">请选择</option>';
-    for (var key in usersByPlatoonSquad) {
-        usersByPlatoonSquad[key].forEach(function(per) {
-            var pName = platoonNames[per.platoon] || (per.platoon + '排');
-            opts += '<option value="' + per.id + '">' + pName + per.squad + '班 - ' + per.name + '</option>';
-        });
-    }
-    select.innerHTML = opts;
-}
-
-async function submitSearch() {
-    var remark = document.getElementById('searchRemark').value.trim();
-    try {
-        var user = getCurrentUser();
-        var targetRole = user.role + 1; // 向下级发布
-        await createCheckCommand(targetRole, remark || '请上报人员在位情况');
-        alert('查人命令已发布');
-    } catch (e) {
-        alert('发布失败：' + e.message);
-    }
-    closeModal();
-}
-
-function renderDutyForm() {
-    var types = window._dutyTypes;
-    var typeHtml = '';
-    types.forEach(function(t, i) {
-        typeHtml += '<div class="form-group"><label>类型' + (i + 1) + '：</label><input type="text" id="dutyType' + i + '" value="' + t + '" placeholder="请输入类型（10字以内）" maxlength="10"></div>';
-    });
-    document.getElementById('modalContent').innerHTML = typeHtml +
-        '<div style="text-align:center;margin:6px 0;"><button class="btn" style="background:#e5e7eb;color:#374151;padding:6px 16px;font-size:0.9em;border-radius:8px;" onclick="addDutyType()">+ 增加类型</button></div>' +
-        '<div class="form-group"><label>备注：</label><input type="text" id="dutyRemark" placeholder="请输入备注（20字以内）" maxlength="20"></div>' +
-        '<div style="display:flex;gap:10px;margin-top:10px;">' +
-        '<button class="btn" style="background:#3b82f6;color:white;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="publishDuty()">发布</button>' +
-        '<button class="btn" style="background:#e5e7eb;color:#374151;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="closeModal()">返回</button>' +
-        '</div>';
-}
-
-function addDutyType() {
-    window._dutyTypes.push('');
-    renderDutyForm();
-}
-
-function publishDuty() {
-    var types = window._dutyTypes;
-    var typeValues = types.map(function(_, i) { return document.getElementById('dutyType' + i).value.trim(); });
-    var remark = document.getElementById('dutyRemark').value.trim();
-    if (typeValues.some(function(t) { return !t; })) { alert('请填写所有类型'); return; }
-    var title = document.getElementById('modalTitle');
-    var content = document.getElementById('modalContent');
-    title.textContent = '发布公差';
-    var confirmHtml = '<div style="text-align:center;font-size:1.1em;font-weight:600;margin-bottom:10px;">公差命令将向下级发布</div>';
-    typeValues.forEach(function(t, i) { confirmHtml += '<div style="margin-bottom:6px;font-size:0.95em;">类型' + (i + 1) + '：' + t + '</div>'; });
-    confirmHtml += '<div style="margin-bottom:12px;font-size:0.95em;">备注：' + remark + '</div>';
-    confirmHtml += '<div style="display:flex;gap:10px;">' +
-        '<button class="btn" style="background:#3b82f6;color:white;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="confirmPublishDuty()">确认</button>' +
-        '<button class="btn" style="background:#e5e7eb;color:#374151;flex:1;padding:12px;font-size:1em;border-radius:12px;" onclick="openModal(\'duty\')">返回</button>' +
-        '</div>';
-    content.innerHTML = confirmHtml;
-}
-
-async function confirmPublishDuty() {
-    var types = window._dutyTypes;
-    var typeValues = types.map(function(_, i) { return document.getElementById('dutyType' + i).value.trim(); });
-    var remark = document.getElementById('dutyRemark').value.trim();
-    try {
-        var user = getCurrentUser();
-        var targetRole = user.role + 1; // 向下级发布
-        await createDutyCommand(targetRole, typeValues, remark);
-        alert('公差命令已发布');
-    } catch (e) {
-        alert('发布失败：' + e.message);
-    }
-    closeModal();
-}
-
-async function reportPerson() {
-    var pv = document.getElementById('reportPerson').value;
-    var st = document.getElementById('reportStatus').value;
-    var r = document.getElementById('reportRemark').value;
-    if (!pv) { alert('请选择人员'); return; }
-    try {
-        await updatePersonStatus(parseInt(pv), parseInt(st), r);
-        alert('已报备');
-    } catch (e) {
-        alert('报备失败：' + e.message);
-    }
-    closeModal();
-    loadData();
-}
-
-async function sendEmergency() {
-    var t = document.getElementById('emergencyTitle').value.trim();
-    var c = document.getElementById('emergencyContent').value.trim();
-    if (!c) { alert('请输入命令内容'); return; }
-    try {
-        var remark = t ? t + '：' + c : c;
-        await createEmergencyCommand(remark);
-        alert('紧急命令已发送');
-    } catch (e) {
-        alert('发送失败：' + e.message);
-    }
-    closeModal();
-}
-
-document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-
-// 初始化
-loadData();
+}).mount('#app');
 </script>
-
 </body>
 </html>
