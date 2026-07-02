@@ -7,7 +7,7 @@
  */
 
 // ==================== 配置 ====================
-const API_BASE_URL = 'https://backroom.bloggogo.xyz/api';
+const API_BASE_URL = 'https://lgd.bloggogo.xyz/api';
 const ROLE_NAMES = { 0: '队长', 1: '连干', 2: '排干', 3: '班长', 4: '卫生员', 5: '班员' };
 const STATUS_NAMES = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差/勤务', 3: '病号/请假/外出', 4: '岗哨', 5: '其他' };
 const STATUS_COLORS = { 0: '#22c55e', 1: '#eab308', 2: '#3b82f6', 3: '#ef4444', 4: '#ff8c00', 5: '#581c87' };
