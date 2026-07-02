@@ -1,8 +1,10 @@
 # 人员在线管理系统 - 前后端 API 契约文件
 
-> 版本：1.0
-> 日期：2026-06-24
+> 版本：2.0
+> 日期：2026-07-01
 > 基础路径：`/api`
+> 前端框架：Vue 3（CDN 引入，无需构建）
+> 共享库：`shared.js`（封装所有 API 调用、权限判断、工具函数）
 
 ---
 
@@ -1159,7 +1161,22 @@ ws://<host>/ws/notifications?token=<token>
 
 ---
 
-## 七、API 汇总
+## 七、前端页面清单（Vue 3）
+
+| 页面 | 说明 | 框架 |
+|---|---|---|
+| login.html | 登录页，角色选择登录 | Vue 3 CDN |
+| index.html | 连级人员情况（队长/连干） | Vue 3 CDN |
+| platoon.html | 排级人员情况（排干/值班班长） | Vue 3 CDN |
+| squad.html | 班级人员情况（班长/班员/卫生员） | Vue 3 CDN |
+| guard_day.html | 白岗排岗（连长/排干） | Vue 3 CDN |
+| guard_night.html | 夜岗排岗（连长/排干） | Vue 3 CDN |
+| generator.html | 页面生成器（配置排/班/人数） | 原生 JS |
+| shared.js | 共享库（API 调用、权限、工具函数、Vue 全局混入） | 原生 JS |
+
+---
+
+## 八、API 汇总
 
 | 序号 | 方法 | 路径 | 说明 | 调用页面 |
 |---|---|---|---|---|
@@ -1169,7 +1186,7 @@ ws://<host>/ws/notifications?token=<token>
 | 4 | GET | /api/personnel | 获取人员列表 | index/platoon/squad |
 | 5 | PUT | /api/personnel/{id}/status | 修改人员状态 | index/platoon/squad |
 | 6 | PUT | /api/personnel/batch-status | 批量修改状态 | - |
-| 7 | POST | /api/commands/check | 发布查人命令 | index/platoon/squad |
+| 7 | POST | /api/commands/check | 发布查人命令 | index/platoon |
 | 8 | GET | /api/notifications/check | 查人通知列表 | - |
 | 9 | PUT | /api/notifications/check/{id}/read | 标记查人已读 | - |
 | 10 | POST | /api/reports/person | 提交报人 | squad |
@@ -1177,7 +1194,7 @@ ws://<host>/ws/notifications?token=<token>
 | 12 | PUT | /api/notifications/report/{id} | 处理报人通知 | - |
 | 13 | GET | /api/notifications/report/{id} | 报人详情 | - |
 | 14 | GET | /api/notifications/rejection | 驳回通知 | - |
-| 15 | POST | /api/commands/duty | 发布公差命令 | index/platoon/squad |
+| 15 | POST | /api/commands/duty | 发布公差命令 | index/platoon |
 | 16 | GET | /api/notifications/duty | 公差通知列表 | - |
 | 17 | PUT | /api/notifications/duty/{id}/read | 标记公差已读 | - |
 | 18 | POST | /api/commands/emergency | 发布紧急命令 | index |
