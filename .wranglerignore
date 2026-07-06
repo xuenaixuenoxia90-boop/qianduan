@@ -1,12 +1,14 @@
-node_modules/
-.git/
+node_modules
+.git
 .gitignore
 .wranglerignore
 wrangler.toml
-src/
+src
 package.json
 package-lock.json
 API_CONTRACT.md
 API_DOCS.md
 API_DOCS_V2.md
 README.md
+*.pack
+*.idx
