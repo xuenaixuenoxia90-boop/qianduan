@@ -1,9 +1,9 @@
-node_modules
-.git
+node_modules/
+.git/
 .gitignore
 .wranglerignore
 wrangler.toml
-src
+src/
 package.json
 package-lock.json
 API_CONTRACT.md
