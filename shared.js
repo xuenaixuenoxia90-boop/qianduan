@@ -99,6 +99,17 @@ async function login(role, platoon, squad) {
     return data;
 }
 
+async function register(name, role, platoon, squad) {
+    var data = await apiPost('/auth/register', { name: name, role: role, platoon: platoon, squad: squad });
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('userId', data.userId);
+    localStorage.setItem('userRole', data.role);
+    localStorage.setItem('userPlatoon', data.platoon);
+    localStorage.setItem('userSquad', data.squad);
+    localStorage.setItem('userName', data.name);
+    return data;
+}
+
 async function logout() {
     try { await apiPost('/auth/logout'); } catch (e) {}
     localStorage.removeItem('token');
