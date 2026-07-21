@@ -140,7 +140,7 @@
 <script>
 const { createApp } = Vue;
 
-createApp({
+const app = createApp({
     data() {
         return {
             user: getCurrentUser(),
@@ -156,7 +156,10 @@ createApp({
             changePersonId: '',
             newStatus: 0,
             changeRemark: '',
-            longPressTimer: null
+            longPressTimer: null,
+            PLATOON_NAMES: PLATOON_NAMES,
+            STATUS_NAMES: STATUS_NAMES,
+            STATUS_COLORS: STATUS_COLORS
         };
     },
     computed: {

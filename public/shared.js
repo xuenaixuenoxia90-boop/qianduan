@@ -7,11 +7,15 @@
  */
 
 // ==================== 配置 ====================
-const API_BASE_URL = 'https://houduan.bloggogo.xyz/api';
-const ROLE_NAMES = { 0: '队长', 1: '连干', 2: '排干', 3: '班长', 4: '卫生员', 5: '班员' };
-const STATUS_NAMES = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差/勤务', 3: '病号/请假/外出', 4: '岗哨', 5: '其他' };
-const STATUS_COLORS = { 0: '#22c55e', 1: '#eab308', 2: '#3b82f6', 3: '#ef4444', 4: '#ff8c00', 5: '#581c87' };
-const PLATOON_NAMES = { 1: '一排', 2: '二排', 3: '三排', 4: '四排', 5: '五排', 6: '六排', 7: '七排', 8: '八排', 9: '九排', 10: '十排' };
+var API_BASE_URL = 'https://houduan.bloggogo.xyz/api';
+window.ROLE_NAMES = { 0: '队长', 1: '连干', 2: '排干', 3: '班长', 4: '卫生员', 5: '班员' };
+window.STATUS_NAMES = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差/勤务', 3: '病号/请假/外出', 4: '岗哨', 5: '其他' };
+window.STATUS_COLORS = { 0: '#22c55e', 1: '#eab308', 2: '#3b82f6', 3: '#ef4444', 4: '#ff8c00', 5: '#581c87' };
+window.PLATOON_NAMES = { 1: '一排', 2: '二排', 3: '三排', 4: '四排', 5: '五排', 6: '六排', 7: '七排', 8: '八排', 9: '九排', 10: '十排' };
+var ROLE_NAMES = window.ROLE_NAMES;
+var STATUS_NAMES = window.STATUS_NAMES;
+var STATUS_COLORS = window.STATUS_COLORS;
+var PLATOON_NAMES = window.PLATOON_NAMES;
 
 // ==================== 工具函数 ====================
 function getTodayStr() {
