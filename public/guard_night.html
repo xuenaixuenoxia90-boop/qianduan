@@ -159,7 +159,7 @@ createApp({
         },
         async loadData() {
             try {
-                this.allUsers = await getPersonnel();
+                this.allUsers = await getPersonnel(null, null, true);
                 var sched = await getGuardSchedule(this.guardType);
                 this.assignments = {};
                 if (sched && sched.assignments) {

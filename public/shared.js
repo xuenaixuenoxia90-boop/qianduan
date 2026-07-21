@@ -123,11 +123,46 @@ async function logout() {
 }
 
 // ==================== 人员 ====================
-async function getPersonnel(platoon, squad) {
+async function getPersonnel(platoon, squad, flatten) {
     var params = {};
     if (platoon !== undefined && platoon !== null) params.platoon = platoon;
     if (squad !== undefined && squad !== null) params.squad = squad;
-    return apiGet('/personnel', params);
+    var result = await apiGet('/personnel', params);
+    if (squad !== undefined && squad !== null && platoon !== undefined && platoon !== null) {
+        var pKey = String(platoon), sKey = String(squad);
+        return result[pKey] && result[pKey].squads && result[pKey].squads[sKey] ? result[pKey].squads[sKey] : [];
+    }
+    if (platoon !== undefined && platoon !== null) {
+        if (flatten) {
+            var list = [];
+            var pk2 = String(platoon);
+            var info2 = result[pk2];
+            if (info2 && info2.squads) {
+                for (var s2 in info2.squads) {
+                    info2.squads[s2].forEach(function(u) {
+                        list.push(Object.assign({}, u, { platoon: parseInt(pk2), squad: parseInt(s2) }));
+                    });
+                }
+            }
+            return list;
+        }
+        var pk = String(platoon);
+        return result[pk] && result[pk].squads ? result[pk].squads : {};
+    }
+    if (flatten) {
+        var list2 = [];
+        for (var p in result) {
+            var info = result[p];
+            if (!info || !info.squads) continue;
+            for (var s in info.squads) {
+                info.squads[s].forEach(function(u) {
+                    list2.push(Object.assign({}, u, { platoon: parseInt(p), squad: parseInt(s) }));
+                });
+            }
+        }
+        return list2;
+    }
+    return result;
 }
 
 async function updatePersonStatus(personId, status, remark) {

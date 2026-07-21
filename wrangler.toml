@@ -3,4 +3,4 @@ main = "workers-site/index.js"
 compatibility_date = "2025-01-01"
 
 [site]
-bucket = "./"
+bucket = "./public"

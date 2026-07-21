@@ -47,18 +47,43 @@
             margin-bottom: 16px; font-size: 0.9em; display: none;
         }
         .error-msg.show { display: block; }
+        .success-msg {
+            background: #c6f6d5; color: #276749; padding: 10px 14px; border-radius: 8px;
+            margin-bottom: 16px; font-size: 0.9em; display: none;
+        }
+        .success-msg.show { display: block; }
+        .tab-switch {
+            display: flex; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0;
+        }
+        .tab-switch button {
+            flex: 1; padding: 12px; background: none; border: none; font-size: 1em;
+            font-weight: 600; color: #718096; cursor: pointer; transition: all 0.2s;
+        }
+        .tab-switch button.active {
+            color: #667eea; border-bottom: 2px solid #667eea; margin-bottom: -2px;
+        }
     </style>
 </head>
 <body>
 <div id="app">
     <div class="login-card">
         <h1>人员在线管理系统</h1>
-        <p class="subtitle">请选择角色并登录</p>
+        <p class="subtitle" v-if="activeTab === 'login'">请选择角色并登录</p>
+        <p class="subtitle" v-else>创建新账号</p>
+
+        <div class="tab-switch">
+            <button :class="{ active: activeTab === 'login' }" @click="switchTab('login')">登录</button>
+            <button :class="{ active: activeTab === 'register' }" @click="switchTab('register')">注册</button>
+        </div>
+
         <div class="error-msg" :class="{ show: errorMsg }">{{ errorMsg }}</div>
-        <form @submit.prevent="handleLogin">
+        <div class="success-msg" :class="{ show: successMsg }">{{ successMsg }}</div>
+
+        <!-- 登录表单 -->
+        <form v-if="activeTab === 'login'" @submit.prevent="handleLogin">
             <div class="form-group">
                 <label>角色</label>
-                <select v-model.number="form.role">
+                <select v-model.number="loginForm.role">
                     <option :value="0">队长</option>
                     <option :value="1">连干</option>
                     <option :value="2">排干</option>
@@ -69,14 +94,44 @@
             </div>
             <div class="form-group">
                 <label>排号</label>
-                <input type="number" v-model.number="form.platoon" min="1" max="10" placeholder="请输入排号">
+                <input type="number" v-model.number="loginForm.platoon" min="1" max="10" placeholder="请输入排号">
             </div>
             <div class="form-group">
                 <label>班号</label>
-                <input type="number" v-model.number="form.squad" min="1" max="10" placeholder="请输入班号">
+                <input type="number" v-model.number="loginForm.squad" min="1" max="10" placeholder="请输入班号">
             </div>
             <button type="submit" class="login-btn" :disabled="loading">
                 {{ loading ? '登录中...' : '登录' }}
+            </button>
+        </form>
+
+        <!-- 注册表单 -->
+        <form v-else @submit.prevent="handleRegister">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" v-model="registerForm.name" placeholder="请输入姓名" required>
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select v-model.number="registerForm.role">
+                    <option :value="0">队长</option>
+                    <option :value="1">连干</option>
+                    <option :value="2">排干</option>
+                    <option :value="3">班长</option>
+                    <option :value="4">卫生员</option>
+                    <option :value="5">班员</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>排号</label>
+                <input type="number" v-model.number="registerForm.platoon" min="1" max="10" placeholder="请输入排号" required>
+            </div>
+            <div class="form-group">
+                <label>班号</label>
+                <input type="number" v-model.number="registerForm.squad" min="1" max="10" placeholder="请输入班号" required>
+            </div>
+            <button type="submit" class="login-btn" :disabled="loading">
+                {{ loading ? '注册中...' : '注册' }}
             </button>
         </form>
     </div>
@@ -88,9 +143,12 @@ const { createApp } = Vue;
 createApp({
     data() {
         return {
-            form: { role: 3, platoon: 1, squad: 1 },
+            activeTab: 'login',
+            loginForm: { role: 3, platoon: 1, squad: 1 },
+            registerForm: { name: '', role: 5, platoon: 1, squad: 1 },
             loading: false,
-            errorMsg: ''
+            errorMsg: '',
+            successMsg: ''
         };
     },
     mounted() {
@@ -100,14 +158,40 @@ createApp({
         }
     },
     methods: {
+        switchTab(tab) {
+            this.activeTab = tab;
+            this.errorMsg = '';
+            this.successMsg = '';
+        },
         async handleLogin() {
             this.loading = true;
             this.errorMsg = '';
+            this.successMsg = '';
             try {
-                const data = await login(this.form.role, this.form.platoon, this.form.squad);
+                const data = await login(this.loginForm.role, this.loginForm.platoon, this.loginForm.squad);
                 this.redirectByRole(data.role, data.platoon, data.squad);
             } catch (e) {
                 this.errorMsg = e.message || '登录失败';
+                this.loading = false;
+            }
+        },
+        async handleRegister() {
+            this.loading = true;
+            this.errorMsg = '';
+            this.successMsg = '';
+            try {
+                const data = await register(
+                    this.registerForm.name,
+                    this.registerForm.role,
+                    this.registerForm.platoon,
+                    this.registerForm.squad
+                );
+                this.successMsg = '注册成功，正在跳转...';
+                setTimeout(() => {
+                    this.redirectByRole(data.role, data.platoon, data.squad);
+                }, 1000);
+            } catch (e) {
+                this.errorMsg = e.message || '注册失败';
                 this.loading = false;
             }
         },
