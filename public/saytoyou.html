@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>说一说 - 全连队留言广场</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="shared.js"></script>
+    <style>
+        :root { --bg-dark:#1f2937; --bg-light:#f3f4f6; --primary:#8b5cf6; --border:#e5e7eb; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg-light); height:100vh; overflow:hidden; font-family:'Microsoft YaHei','Segoe UI',sans-serif; font-size:14px; }
+        .page { display:flex; flex-direction:column; height:100vh; }
+        .header { background:white; padding:12px 16px; box-shadow:0 2px 4px rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+        .header h1 { color:var(--bg-dark); font-size:1.2em; }
+        .header-btn { padding:6px 14px; background:var(--bg-dark); color:white; border:none; border-radius:16px; font-size:0.85em; cursor:pointer; transition:opacity 0.15s; text-decoration:none; display:inline-block; }
+        .header-btn:active { opacity:0.7; }
+        .content { flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+        .input-area { background:white; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.08); flex-shrink:0; }
+        .input-area textarea { width:100%; min-height:80px; padding:12px; border:2px solid var(--border); border-radius:8px; font-size:1em; font-family:inherit; resize:vertical; }
+        .input-area textarea:focus { outline:none; border-color:var(--primary); }
+        .input-area button { width:100%; margin-top:12px; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:opacity 0.15s; }
+        .input-area button:active { opacity:0.7; }
+        .messages-list { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+        .message-card { background:white; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+        .message-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+        .message-user { font-weight:600; color:var(--bg-dark); font-size:1em; }
+        .message-time { color:#9ca3af; font-size:0.85em; }
+        .message-content { color:#374151; font-size:1em; line-height:1.6; word-wrap:break-word; }
+        .empty-state { text-align:center; padding:40px 20px; color:#9ca3af; }
+        .empty-state-icon { font-size:3em; margin-bottom:12px; opacity:0.5; }
+        .empty-state-text { font-size:1em; }
+        @media (max-width:600px) {
+            body { font-size:13px; }
+            .header { padding:10px 12px; }
+            .header h1 { font-size:1.1em; }
+            .content { padding:12px; }
+            .input-area { padding:12px; }
+            .message-card { padding:12px; }
+        }
+    </style>
+</head>
+<body>
+<div id="app" class="page">
+    <div class="header">
+        <h1>说一说 - 全连队留言广场</h1>
+        <a href="javascript:history.back()" class="header-btn">返回</a>
+    </div>
+    <div class="content">
+        <div class="input-area">
+            <textarea v-model="newMessage" placeholder="说点什么吧..."></textarea>
+            <button @click="sendMessage">发送</button>
+        </div>
+        <div class="messages-list">
+            <div v-if="messages.length === 0" class="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <div class="empty-state-text">还没有人说话，快来抢沙发吧！</div>
+            </div>
+            <div v-for="msg in messages" :key="msg.id" class="message-card">
+                <div class="message-header">
+                    <span class="message-user">{{ msg.userName }}</span>
+                    <span class="message-time">{{ formatTime(msg.createdAt) }}</span>
+                </div>
+                <div class="message-content">{{ msg.content }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            user: getCurrentUser(),
+            newMessage: '',
+            messages: []
+        };
+    },
+    methods: {
+        async loadMessages() {
+            try {
+                const result = await getMessages(1, 100);
+                this.messages = result.list || [];
+            } catch (e) {
+                showError('加载留言失败：' + e.message);
+            }
+        },
+        async sendMessage() {
+            if (!this.newMessage.trim()) {
+                showError('请输入内容');
+                return;
+            }
+            var hideLoading = showLoading('正在发送...');
+            try {
+                await createMessage(this.newMessage.trim());
+                hideLoading();
+                showSuccess('发送成功');
+                this.newMessage = '';
+                this.loadMessages();
+            } catch (e) {
+                hideLoading();
+                showError('发送失败：' + e.message);
+            }
+        },
+        formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return '刚刚';
+            if (minutes < 60) return minutes + '分钟前';
+            if (hours < 24) return hours + '小时前';
+            if (days < 7) return days + '天前';
+
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            return y === now.getFullYear() ? `${m}-${d} ${h}:${min}` : `${y}-${m}-${d}`;
+        }
+    },
+    mounted() {
+        checkLogin();
+        this.loadMessages();
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
