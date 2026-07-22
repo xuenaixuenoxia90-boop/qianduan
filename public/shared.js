@@ -7,7 +7,7 @@
  */
 
 // ==================== 配置 ====================
-var API_BASE_URL = 'https://houduan.bloggogo.xyz/api';
+var API_BASE_URL = 'https://houduan.xuenaixuenoxia90.workers.dev/api';
 window.ROLE_NAMES = { 0: '队长', 1: '连干', 2: '排干', 3: '班长', 4: '卫生员', 5: '班员' };
 window.STATUS_NAMES = { 0: '正常', 1: '俱乐部/竞赛', 2: '公差/勤务', 3: '病号/请假/外出', 4: '岗哨', 5: '其他' };
 window.STATUS_COLORS = { 0: '#22c55e', 1: '#eab308', 2: '#3b82f6', 3: '#ef4444', 4: '#ff8c00', 5: '#581c87' };
@@ -29,6 +29,7 @@ function getTodayStr() {
 function getCurrentUser() {
     return {
         id: parseInt(localStorage.getItem('userId') || '0'),
+        companyId: parseInt(localStorage.getItem('companyId') || '1'),
         name: localStorage.getItem('userName') || '',
         role: parseInt(localStorage.getItem('userRole') || '5'),
         platoon: parseInt(localStorage.getItem('userPlatoon') || '0'),
@@ -92,10 +93,11 @@ function apiPut(endpoint, body, params) { return apiRequest('PUT', endpoint, bod
 function apiDelete(endpoint, params) { return apiRequest('DELETE', endpoint, null, params); }
 
 // ==================== 认证 ====================
-async function login(role, platoon, squad) {
-    var data = await apiPost('/auth/login', { role: role, platoon: platoon, squad: squad });
+async function login(name, password, invite_code) {
+    var data = await apiPost('/auth/login', { name: name, password: password, invite_code: invite_code });
     localStorage.setItem('token', data.token);
     localStorage.setItem('userId', data.userId);
+    localStorage.setItem('companyId', data.companyId);
     localStorage.setItem('userRole', data.role);
     localStorage.setItem('userPlatoon', data.platoon);
     localStorage.setItem('userSquad', data.squad);
@@ -103,10 +105,18 @@ async function login(role, platoon, squad) {
     return data;
 }
 
-async function register(name, role, platoon, squad) {
-    var data = await apiPost('/auth/register', { name: name, role: role, platoon: platoon, squad: squad });
+async function register(invite_code, name, password, role, platoon, squad) {
+    var data = await apiPost('/auth/register', {
+        invite_code: invite_code,
+        name: name,
+        password: password,
+        role: role,
+        platoon: platoon,
+        squad: squad
+    });
     localStorage.setItem('token', data.token);
     localStorage.setItem('userId', data.userId);
+    localStorage.setItem('companyId', data.companyId);
     localStorage.setItem('userRole', data.role);
     localStorage.setItem('userPlatoon', data.platoon);
     localStorage.setItem('userSquad', data.squad);
@@ -118,6 +128,7 @@ async function logout() {
     try { await apiPost('/auth/logout'); } catch (e) {}
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    localStorage.removeItem('companyId');
     localStorage.removeItem('userName');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userPlatoon');

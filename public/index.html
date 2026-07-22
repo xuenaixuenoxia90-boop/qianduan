@@ -225,7 +225,7 @@ createApp({
         scopePlatoons() {
             if (!this.personnelData) return [];
             var ps = Object.keys(this.personnelData).map(Number).sort((a,b)=>a-b);
-            if (this.effectiveRole === 2) ps = [this.user.platoon];
+            if (this.effectiveRole === 2 && this.user.role > 1) ps = [this.user.platoon];
             return ps;
         },
         allPersonList() {

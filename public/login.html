@@ -22,22 +22,23 @@
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             padding: 40px 30px;
-            max-width: 400px;
+            max-width: 480px;
             width: 100%;
         }
         .login-card h1 { text-align: center; color: #1a202c; font-size: 1.5em; margin-bottom: 8px; }
         .login-card .subtitle { text-align: center; color: #718096; font-size: 0.9em; margin-bottom: 30px; }
-        .form-group { margin-bottom: 16px; }
+        .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+        .form-group { flex: 1; min-width: 0; }
         .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #2d3748; font-size: 0.9em; }
         .form-group select, .form-group input {
-            width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px;
-            font-size: 1em; transition: border-color 0.2s; background: white;
+            width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 8px;
+            font-size: 0.95em; transition: border-color 0.2s; background: white;
         }
         .form-group select:focus, .form-group input:focus { outline: none; border-color: #667eea; }
         .login-btn {
             width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: 600;
-            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin-top: 8px;
         }
         .login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102,126,234,0.4); }
         .login-btn:active { transform: translateY(0); }
@@ -62,13 +63,19 @@
         .tab-switch button.active {
             color: #667eea; border-bottom: 2px solid #667eea; margin-bottom: -2px;
         }
+        @media (max-width: 500px) {
+            .login-card { padding: 30px 18px; }
+            .form-row { flex-direction: column; gap: 0; }
+            .form-group { margin-bottom: 16px; }
+            .form-row .form-group { margin-bottom: 0; }
+        }
     </style>
 </head>
 <body>
 <div id="app">
     <div class="login-card">
         <h1>人员在线管理系统</h1>
-        <p class="subtitle" v-if="activeTab === 'login'">请选择角色并登录</p>
+        <p class="subtitle" v-if="activeTab === 'login'">请输入账号密码登录</p>
         <p class="subtitle" v-else>创建新账号</p>
 
         <div class="tab-switch">
@@ -79,56 +86,63 @@
         <div class="error-msg" :class="{ show: errorMsg }">{{ errorMsg }}</div>
         <div class="success-msg" :class="{ show: successMsg }">{{ successMsg }}</div>
 
-        <!-- 登录表单 -->
+        <!-- 登录表单：姓名 + 密码 + 邀请码 -->
         <form v-if="activeTab === 'login'" @submit.prevent="handleLogin">
-            <div class="form-group">
-                <label>角色</label>
-                <select v-model.number="loginForm.role">
-                    <option :value="0">队长</option>
-                    <option :value="1">连干</option>
-                    <option :value="2">排干</option>
-                    <option :value="3">班长</option>
-                    <option :value="4">卫生员</option>
-                    <option :value="5">班员</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>排号</label>
-                <input type="number" v-model.number="loginForm.platoon" min="1" max="10" placeholder="请输入排号">
-            </div>
-            <div class="form-group">
-                <label>班号</label>
-                <input type="number" v-model.number="loginForm.squad" min="1" max="10" placeholder="请输入班号">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" v-model="loginForm.name" placeholder="请输入姓名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" v-model="loginForm.password" placeholder="请输入密码" required>
+                </div>
+                <div class="form-group">
+                    <label>邀请码</label>
+                    <input type="text" v-model="loginForm.invite_code" placeholder="请输入邀请码" required>
+                </div>
             </div>
             <button type="submit" class="login-btn" :disabled="loading">
                 {{ loading ? '登录中...' : '登录' }}
             </button>
         </form>
 
-        <!-- 注册表单 -->
+        <!-- 注册表单：2行3列 -->
         <form v-else @submit.prevent="handleRegister">
-            <div class="form-group">
-                <label>姓名</label>
-                <input type="text" v-model="registerForm.name" placeholder="请输入姓名" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>邀请码</label>
+                    <input type="text" v-model="registerForm.invite_code" placeholder="邀请码" required>
+                </div>
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" v-model="registerForm.name" placeholder="姓名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" v-model="registerForm.password" placeholder="密码" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label>角色</label>
-                <select v-model.number="registerForm.role">
-                    <option :value="0">队长</option>
-                    <option :value="1">连干</option>
-                    <option :value="2">排干</option>
-                    <option :value="3">班长</option>
-                    <option :value="4">卫生员</option>
-                    <option :value="5">班员</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>排号</label>
-                <input type="number" v-model.number="registerForm.platoon" min="1" max="10" placeholder="请输入排号" required>
-            </div>
-            <div class="form-group">
-                <label>班号</label>
-                <input type="number" v-model.number="registerForm.squad" min="1" max="10" placeholder="请输入班号" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>角色</label>
+                    <select v-model.number="registerForm.role">
+                        <option :value="0">队长</option>
+                        <option :value="1">连干</option>
+                        <option :value="2">排干</option>
+                        <option :value="3">班长</option>
+                        <option :value="4">卫生员</option>
+                        <option :value="5">班员</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>排号</label>
+                    <input type="number" v-model.number="registerForm.platoon" min="1" max="10" placeholder="排号" required>
+                </div>
+                <div class="form-group">
+                    <label>班号</label>
+                    <input type="number" v-model.number="registerForm.squad" min="1" max="10" placeholder="班号" required>
+                </div>
             </div>
             <button type="submit" class="login-btn" :disabled="loading">
                 {{ loading ? '注册中...' : '注册' }}
@@ -144,8 +158,8 @@ createApp({
     data() {
         return {
             activeTab: 'login',
-            loginForm: { role: 3, platoon: 1, squad: 1 },
-            registerForm: { name: '', role: 5, platoon: 1, squad: 1 },
+            loginForm: { name: '', password: '', invite_code: '' },
+            registerForm: { invite_code: '', name: '', password: '', role: 5, platoon: 1, squad: 1 },
             loading: false,
             errorMsg: '',
             successMsg: ''
@@ -168,7 +182,7 @@ createApp({
             this.errorMsg = '';
             this.successMsg = '';
             try {
-                const data = await login(this.loginForm.role, this.loginForm.platoon, this.loginForm.squad);
+                const data = await login(this.loginForm.name, this.loginForm.password, this.loginForm.invite_code);
                 this.redirectByRole(data.role, data.platoon, data.squad);
             } catch (e) {
                 this.errorMsg = e.message || '登录失败';
@@ -179,9 +193,23 @@ createApp({
             this.loading = true;
             this.errorMsg = '';
             this.successMsg = '';
+            // 前端密码复杂度验证
+            var pwd = this.registerForm.password;
+            if (pwd.length < 8) {
+                this.errorMsg = '密码至少8位';
+                this.loading = false;
+                return;
+            }
+            if (!/[a-z]/.test(pwd) || !/[A-Z]/.test(pwd) || !/\d/.test(pwd) || !/[@$!%*?&]/.test(pwd)) {
+                this.errorMsg = '密码需包含大写字母、小写字母、数字和特殊字符(@$!%*?&)';
+                this.loading = false;
+                return;
+            }
             try {
                 const data = await register(
+                    this.registerForm.invite_code,
                     this.registerForm.name,
+                    this.registerForm.password,
                     this.registerForm.role,
                     this.registerForm.platoon,
                     this.registerForm.squad

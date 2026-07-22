@@ -168,7 +168,7 @@
 <script>
 const { createApp } = Vue;
 
-createApp({
+var app = createApp({
     data() {
         return {
             user: getCurrentUser(),
@@ -195,7 +195,7 @@ createApp({
         canSearch() { return this.effectiveRole <= 2; },
         sortedSquads() {
             if (!this.personnelData) return [];
-            var squads = this.personnelData[this.currentPlatoon] || {};
+            var squads = this.personnelData || {};
             return Object.keys(squads).map(id => ({id: parseInt(id), users: squads[id]})).sort((a,b)=>a.id-b.id);
         },
         squadCount() { return this.sortedSquads.length || 1; },
