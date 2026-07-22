@@ -270,6 +270,135 @@ async function getOrganizationStructure() { return apiGet('/organization/structu
 async function getPlatoonInfo(id) { return apiGet('/organization/platoon/' + id); }
 async function getSquadInfo(platoonId, squadId) { return apiGet('/organization/platoon/' + platoonId + '/squad/' + squadId); }
 
+// ==================== 弹窗工具 ====================
+// 创建弹窗容器（如果不存在）
+function ensureToastContainer() {
+    var container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:flex;justify-content:center;align-items:center;';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+// 显示加载弹窗
+function showLoading(message) {
+    message = message || '请求中...';
+    var container = ensureToastContainer();
+    
+    var toast = document.createElement('div');
+    toast.className = 'toast-loading';
+    toast.style.cssText = 'background:rgba(0,0,0,0.8);color:white;padding:24px 32px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+    
+    // 旋转动画
+    var spinner = document.createElement('div');
+    spinner.style.cssText = 'width:40px;height:40px;border:4px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;';
+    
+    var text = document.createElement('div');
+    text.textContent = message;
+    text.style.cssText = 'font-size:16px;font-weight:500;';
+    
+    toast.appendChild(spinner);
+    toast.appendChild(text);
+    container.appendChild(toast);
+    
+    // 添加动画样式（如果不存在）
+    if (!document.getElementById('toast-styles')) {
+        var style = document.createElement('style');
+        style.id = 'toast-styles';
+        style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}@keyframes fadeOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.8)}}';
+        document.head.appendChild(style);
+    }
+    
+    toast.style.animation = 'fadeIn 0.2s ease-out';
+    
+    return function() {
+        if (toast.parentNode) {
+            toast.style.animation = 'fadeOut 0.2s ease-out';
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 200);
+        }
+    };
+}
+
+// 显示成功弹窗
+function showSuccess(message, duration) {
+    duration = duration || 1500;
+    var container = ensureToastContainer();
+    
+    var toast = document.createElement('div');
+    toast.style.cssText = 'background:rgba(34,197,94,0.95);color:white;padding:24px 32px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:fadeIn 0.2s ease-out;';
+    
+    // 对勾图标
+    var icon = document.createElement('div');
+    icon.style.cssText = 'width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;';
+    icon.textContent = '✓';
+    
+    var text = document.createElement('div');
+    text.textContent = message || '操作成功';
+    text.style.cssText = 'font-size:16px;font-weight:500;';
+    
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    container.appendChild(toast);
+    
+    setTimeout(function() {
+        toast.style.animation = 'fadeOut 0.2s ease-out';
+        setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 200);
+    }, duration);
+}
+
+// 显示错误弹窗
+function showError(message, duration) {
+    duration = duration || 2000;
+    var container = ensureToastContainer();
+    
+    var toast = document.createElement('div');
+    toast.style.cssText = 'background:rgba(239,68,68,0.95);color:white;padding:24px 32px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:fadeIn 0.2s ease-out;';
+    
+    // 叉号图标
+    var icon = document.createElement('div');
+    icon.style.cssText = 'width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;';
+    icon.textContent = '✕';
+    
+    var text = document.createElement('div');
+    text.textContent = message || '操作失败';
+    text.style.cssText = 'font-size:16px;font-weight:500;';
+    
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    container.appendChild(toast);
+    
+    setTimeout(function() {
+        toast.style.animation = 'fadeOut 0.2s ease-out';
+        setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 200);
+    }, duration);
+}
+
+// 包装异步函数，自动显示loading
+function withLoading(asyncFn, loadingMessage) {
+    return async function() {
+        var hideLoading = showLoading(loadingMessage);
+        try {
+            var result = await asyncFn.apply(this, arguments);
+            hideLoading();
+            showSuccess('操作成功');
+            return result;
+        } catch (error) {
+            hideLoading();
+            showError(error.message || '操作失败');
+            throw error;
+        }
+    };
+}
+
 // ==================== Vue 3 全局注册 ====================
 // 注册全局组件和混入
 function registerGlobalComponents(app) {

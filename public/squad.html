@@ -188,7 +188,7 @@ const app = createApp({
     methods: {
         goBack() { window.location.href = 'platoon.html?p=' + this.currentPlatoon; },
         async loadData() {
-            try { this.persons = await getPersonnel(this.currentPlatoon, this.currentSquad); } catch (e) { alert('加载数据失败：'+e.message); }
+            try { this.persons = await getPersonnel(this.currentPlatoon, this.currentSquad); } catch (e) { showError('加载数据失败：'+e.message); }
         },
         startLongPress(name, id) {
             if (!this.canModify) return;
@@ -203,18 +203,21 @@ const app = createApp({
         },
         closeModal() { this.modalType = ''; },
         async sendTalk() {
-            if (!this.talkContent.trim()) { alert('请输入留言内容'); return; }
-            try { await createMessage(this.talkContent); alert('留言已发送'); } catch (e) { alert('发送失败：'+e.message); }
+            if (!this.talkContent.trim()) { showError('请输入留言内容'); return; }
+            var hideLoading = showLoading('正在发送留言...');
+            try { await createMessage(this.talkContent); hideLoading(); showSuccess('留言已发送'); } catch (e) { hideLoading(); showError('发送失败：'+e.message); }
             this.closeModal();
         },
         async submitReport() {
-            if (!this.reportPersonId) { alert('请选择人员'); return; }
-            try { await updatePersonStatus(parseInt(this.reportPersonId), this.reportStatus, this.reportRemark); alert('已报备'); } catch (e) { alert('报备失败：'+e.message); }
+            if (!this.reportPersonId) { showError('请选择人员'); return; }
+            var hideLoading = showLoading('正在报备...');
+            try { await updatePersonStatus(parseInt(this.reportPersonId), this.reportStatus, this.reportRemark); hideLoading(); showSuccess('已报备'); } catch (e) { hideLoading(); showError('报备失败：'+e.message); }
             this.closeModal(); this.loadData();
         },
         async submitChange() {
-            if (!this.changePersonId) { alert('请选择人员'); return; }
-            try { await updatePersonStatus(parseInt(this.changePersonId), this.newStatus, this.changeRemark); alert('已修改'); } catch (e) { alert('修改失败：'+e.message); }
+            if (!this.changePersonId) { showError('请选择人员'); return; }
+            var hideLoading = showLoading('正在修改状态...');
+            try { await updatePersonStatus(parseInt(this.changePersonId), this.newStatus, this.changeRemark); hideLoading(); showSuccess('已修改'); } catch (e) { hideLoading(); showError('修改失败：'+e.message); }
             this.closeModal(); this.loadData();
         }
     },

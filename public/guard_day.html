@@ -168,21 +168,23 @@ createApp({
                         this.assignments[a.userId] = { cycle: a.cycle, order: a.order };
                     });
                 }
-            } catch (e) { alert('加载数据失败：'+e.message); }
+            } catch (e) { showError('加载数据失败：'+e.message); }
         },
         async confirmGuard() {
             var count = Object.keys(this.assignments).length;
-            if (count === 0) { alert('请先点击人员格子进行排岗'); return; }
+            if (count === 0) { showError('请先点击人员格子进行排岗'); return; }
+            var hideLoading = showLoading('正在确认排岗...');
             try {
                 var list = [];
                 for (var k in this.assignments) {
                     list.push({ userId: parseInt(k), cycle: this.assignments[k].cycle, order: this.assignments[k].order });
                 }
                 await confirmGuardSchedule(this.guardType, list);
-                alert('已确认排岗，共'+count+'人');
+                hideLoading();
+                showSuccess('已确认排岗，共'+count+'人');
                 this.editMode = false;
                 this.loadData();
-            } catch (e) { alert('排岗失败：'+e.message); }
+            } catch (e) { hideLoading(); showError('排岗失败：'+e.message); }
         },
         cancelEdit() {
             this.assignments = {};

@@ -280,7 +280,7 @@ createApp({
         async loadData() {
             try {
                 this.personnelData = await getPersonnel();
-            } catch (e) { alert('加载数据失败：'+e.message); }
+            } catch (e) { showError('加载数据失败：'+e.message); }
         },
         doLogout() { logout(); },
         startLongPress(p, s, name, id) {
@@ -297,10 +297,12 @@ createApp({
             this.modalTitle = '修改状态';
         },
         async changePersonStatus(personId, newStatus) {
+            var hideLoading = showLoading('正在修改状态...');
             try {
                 await updatePersonStatus(personId, newStatus);
-                alert('已修改 '+this.changeName+' 的状态');
-            } catch (e) { alert('修改失败：'+e.message); }
+                hideLoading();
+                showSuccess('已修改 '+this.changeName+' 的状态');
+            } catch (e) { hideLoading(); showError('修改失败：'+e.message); }
             this.closeModal();
             this.loadData();
         },
@@ -314,36 +316,44 @@ createApp({
         },
         closeModal() { this.modalType = ''; },
         async submitSearch() {
+            var hideLoading = showLoading('正在发布查人命令...');
             try {
                 await createCheckCommand(this.user.role+1, this.searchRemark || '请上报人员在位情况');
-                alert('查人命令已发布');
-            } catch (e) { alert('发布失败：'+e.message); }
+                hideLoading();
+                showSuccess('查人命令已发布');
+            } catch (e) { hideLoading(); showError('发布失败：'+e.message); }
             this.closeModal();
         },
         async sendEmergency() {
-            if (!this.emergencyContent.trim()) { alert('请输入命令内容'); return; }
+            if (!this.emergencyContent.trim()) { showError('请输入命令内容'); return; }
+            var hideLoading = showLoading('正在发送紧急命令...');
             try {
                 var remark = this.emergencyTitle ? this.emergencyTitle+'：'+this.emergencyContent : this.emergencyContent;
                 await createEmergencyCommand(remark);
-                alert('紧急命令已发送');
-            } catch (e) { alert('发送失败：'+e.message); }
+                hideLoading();
+                showSuccess('紧急命令已发送');
+            } catch (e) { hideLoading(); showError('发送失败：'+e.message); }
             this.closeModal();
         },
         async publishDuty() {
             var types = this.dutyTypes.filter(t => t.trim());
-            if (types.length === 0) { alert('请至少填写一个类型'); return; }
+            if (types.length === 0) { showError('请至少填写一个类型'); return; }
+            var hideLoading = showLoading('正在发布公差命令...');
             try {
                 await createDutyCommand(this.user.role+1, types, this.dutyRemark);
-                alert('公差命令已发布');
-            } catch (e) { alert('发布失败：'+e.message); }
+                hideLoading();
+                showSuccess('公差命令已发布');
+            } catch (e) { hideLoading(); showError('发布失败：'+e.message); }
             this.closeModal();
         },
         async reportPerson() {
-            if (!this.reportPersonId) { alert('请选择人员'); return; }
+            if (!this.reportPersonId) { showError('请选择人员'); return; }
+            var hideLoading = showLoading('正在报备...');
             try {
                 await updatePersonStatus(parseInt(this.reportPersonId), this.reportStatus, this.reportRemark);
-                alert('已报备');
-            } catch (e) { alert('报备失败：'+e.message); }
+                hideLoading();
+                showSuccess('已报备');
+            } catch (e) { hideLoading(); showError('报备失败：'+e.message); }
             this.closeModal();
             this.loadData();
         }
